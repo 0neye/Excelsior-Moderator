@@ -26,7 +26,17 @@ async def get_user_names(bot: discord.Bot, guild: discord.Guild, user_id: int) -
 
 
 def format_discord_message(message: discord.Message, relative_id: int = None, reply_rel_id: int = None) -> str:
-    """Format a discord message as a string for passing to llm."""
+    """
+    Format a single discord message as a string for passing to llm.
+    
+    Args:
+        message (discord.Message): The message to format
+        relative_id (int, optional): Relative ID for the message. Defaults to None.
+        reply_rel_id (int, optional): Relative ID of the message being replied to. Defaults to None.
+        
+    Returns:
+        str: Formatted string representation of the message
+    """
     rel_id = f"({relative_id}) " if relative_id is not None else ""
     reply = ""
     if message.reference and message.reference.resolved:
@@ -46,6 +56,17 @@ def format_discord_message(message: discord.Message, relative_id: int = None, re
     return (rel_id + reply + msg + edited + reactions).strip()
 
 def format_consecutive_user_messages(messages: list[discord.Message], relative_id: Optional[int] = None, reply_rel_id: Optional[int] = None) -> str:
+    """
+    Format consecutive messages from the same user as a single string.
+    
+    Args:
+        messages (list[discord.Message]): List of consecutive messages from the same user
+        relative_id (Optional[int], optional): Relative ID for the message group. Defaults to None.
+        reply_rel_id (Optional[int], optional): Relative ID of the message being replied to. Defaults to None.
+        
+    Returns:
+        str: Formatted string representation of the consecutive messages
+    """
     if not messages:
         return ""
     
@@ -72,6 +93,15 @@ def format_consecutive_user_messages(messages: list[discord.Message], relative_i
     
 
 def format_discord_messages(messages: list[discord.Message]) -> list[str]:
+    """
+    Format a list of discord messages as a list of strings, combining consecutive messages from the same user.
+    
+    Args:
+        messages (list[discord.Message]): List of messages to format
+        
+    Returns:
+        list[str]: List of formatted message strings
+    """
     if not messages:
         return []
 
@@ -114,13 +144,32 @@ def format_discord_messages(messages: list[discord.Message]) -> list[str]:
 
 
 def sanitize_external_content(content: str) -> str:
+    """
+    Sanitize external content by removing potentially harmful patterns.
+    
+    Args:
+        content (str): Content to sanitize
+        
+    Returns:
+        str: Sanitized content
+    """
     bad_inputs: list[str] = [r"<\|.*\|>"]
     for pattern in bad_inputs:
         content = re.sub(pattern, '', content, count=1000000)
     return content
 
 async def get_discord_message_by_id(channel: discord.abc.Messageable, discord_message_id: int, fetch: bool = False) -> discord.Message | None:
-    """Retrieve a discord message by its id from the discord api"""
+    """
+    Retrieve a discord message by its ID from the discord API.
+    
+    Args:
+        channel (discord.abc.Messageable): Channel to get the message from
+        discord_message_id (int): ID of the message to retrieve
+        fetch (bool, optional): Whether to force fetch the message. Defaults to False.
+        
+    Returns:
+        discord.Message | None: The retrieved message, or None if not found
+    """
     if fetch:
         return await channel.fetch_message(discord_message_id)
     else:
@@ -138,7 +187,13 @@ async def respond_long_message(
 ):
     """
     Sends a message longer than discord's character limit by chunking it.
-    Supports all kwargs for discord.Interaction.respond().
+    
+    Args:
+        interaction (discord.Interaction): Interaction to respond to
+        text (str): Text to send
+        chunk_size (int, optional): Size of each chunk. Defaults to 1800.
+        use_codeblock (bool, optional): Whether to wrap text in codeblocks. Defaults to False.
+        **kwargs: Additional arguments to pass to interaction.respond()
     """
     chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
 
@@ -157,7 +212,13 @@ async def send_long_message(
 ):
     """
     Sends a message longer than discord's character limit by chunking it.
-    Supports all kwargs for discord.Message.send().
+    
+    Args:
+        channel (discord.abc.Messageable): Channel to send the message to
+        text (str): Text to send
+        chunk_size (int, optional): Size of each chunk. Defaults to 1800.
+        use_codeblock (bool, optional): Whether to wrap text in codeblocks. Defaults to False.
+        **kwargs: Additional arguments to pass to channel.send()
     """
     chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
 

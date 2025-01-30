@@ -7,7 +7,7 @@ client = Cerebras(
     api_key=CEREBRAS_API_KEY
 )
 
-def flag_messages(messages: list[str], waived_people: list[discord.User]) -> str:
+def flag_messages(messages: list[str], waived_people: list[discord.Member]) -> str:
 
     waived_people_names = [person.display_name for person in waived_people]
 
@@ -73,13 +73,13 @@ Provide your response in the following format:
     return chat_completion.choices[0].message.content
 
 
-async def flag_messages_in_thread(thread: discord.Thread, messages: list[str], waived_people: list[discord.User]) -> str:
+def flag_messages_in_thread(thread: discord.Thread, messages: list[str], waived_people: list[discord.Member]) -> str:
     thread_info = f"Thread Title: {thread.name}\n"
     
     first_message = thread.starting_message
     
-    if first_message:
-        thread_info += f"First Thread Message: {first_message.author.display_name}: ❝{first_message.content}❞\n\n"
+    if first_message and first_message.content not in ''.join(messages):
+        thread_info += f"First Thread Message: {first_message.author.display_name}: ❝{first_message.content}❞\n...\n"
     
     messages_with_context = [thread_info] + messages
     

@@ -7,13 +7,13 @@ DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 CEREBRAS_API_KEY = os.getenv('CEREBRAS_API_KEY')
 
 # The text or forum channels to allow
-excelsior = [546229904488923145, 1101149194498089051, 546327169014431746, 1240185912525324300]
+excelsior = [546229904488923145, 1101149194498089051, 546327169014431746, 1240185912525324300, 546907635149045775, 546947839008440330]
 CHANNEL_ALLOW_LIST = [1240462346808463362, 779084507768291379, 1077332289190625300] + excelsior
 
-# How many new messages to wait for before sending them to the llm for moderation
-MESSAGES_PER_CHECK = 10
+# How many message groups to wait for before sending them to the llm for moderation
+MESSAGE_GROUPS_PER_CHECK = 10
 
-# How many messages of history to send to the llm for analysis
+# How many message groups of history to send to the llm for analysis
 HISTORY_PER_CHECK = 25
 
 # If there are new messages in a channel that haven't been checked, but not enough to trigger the above, check anyway after this time
