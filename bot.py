@@ -7,9 +7,9 @@ import datetime
 from history import GroupedHistory, MessageHistory, MessageHistoryManager
 from message_store import FlaggedMessageStore
 
-from config import DISCORD_BOT_TOKEN, CHANNEL_ALLOW_LIST, GENERIC_PING_RESPONSE, GUIDELINES, HISTORY_PER_CHECK, LOG_CHANNEL_ID, MESSAGE_GROUPS_PER_CHECK, SECS_BETWEEN_AUTO_CHECKS, SEND_RESPONSES_TO_LOG_CHANNEL_ONLY, WAIVER_ROLE_NAME, REACT_WITH_EMOJI_IF_NOT_RESPONDING, REACTION_EMOJI
+from config import DISCORD_BOT_TOKEN, CHANNEL_ALLOW_LIST, GENERIC_PING_RESPONSE, GUIDELINES, HISTORY_PER_CHECK, LOG_CHANNEL_ID, MESSAGE_GROUPS_PER_CHECK, SECS_BETWEEN_AUTO_CHECKS, SEND_RESPONSES_TO_LOG_CHANNEL_ONLY, WAIVER_ROLE_NAME, REACT_WITH_EMOJI_IF_NOT_RESPONDING, REACTION_EMOJI, MODERATOR_ROLES
 from llms import extract_flagged_messages, flag_messages, flag_messages_in_thread, generate_user_feedback_message
-from utils import format_consecutive_user_messages, format_discord_message, format_discord_messages, respond_long_message, sanitize_external_content, send_long_message
+from utils import format_consecutive_user_messages, format_discord_message, respond_long_message, sanitize_external_content, send_long_message
 
 global_llm_lock = False
 global_check_timers_running = {}
@@ -64,7 +64,7 @@ async def retry_moderation(channel: discord.TextChannel | discord.Thread, histor
         await asyncio.sleep(2)
     await moderate(channel, history, messages_per_check)
 
-async def moderate(channel: discord.TextChannel | discord.Thread, history: MessageHistory, history_per_check: int):
+async def moderate(channel: discord.TextChannel | discord.Thread, history: MessageHistory, history_per_check: int) -> str:
     """
     Performs moderation on a channel by checking message history for flagged content.
     
@@ -112,7 +112,7 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     print("Flagged message indexes:", extracted)
 
     if not extracted:
-        return
+        return llm_response
     
     flagged_groups = message_groups \
         .flag_groups(extracted) \
@@ -142,6 +142,8 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     # If we do want to directly respond to the user
     else:
         pass
+
+    return llm_response
 
 
 @bot.event
@@ -333,12 +335,17 @@ async def check(ctx: discord.ApplicationContext):
     Args:
         ctx (discord.ApplicationContext): The command context
     """
+
+    if not any(role.name in MODERATOR_ROLES for role in ctx.author.roles):
+        await ctx.respond("You don't have permission to use this command.", ephemeral=True)
+        return
+
     history = history_manager.get_history(ctx.channel.id)
     if not history:
         await ctx.respond("No message history available", ephemeral=True)
         return
     
-    await moderate(ctx.channel, history, HISTORY_PER_CHECK)
-    await ctx.respond("Moderation check completed.", ephemeral=True)
+    llm_response = await moderate(ctx.channel, history, HISTORY_PER_CHECK)
+    await respond_long_message(ctx.interaction, f"Moderation check completed. LLM response:\n```{llm_response}```", ephemeral=True)
 
 bot.run(DISCORD_BOT_TOKEN)

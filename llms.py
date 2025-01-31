@@ -24,16 +24,17 @@ Messages are in the format "(index) user: ❝content❞". Here is the list of me
 {messages}
 </discord_messages>
 
-Analyze each message to determine if it contains either unsolicited and/or unconstructive criticism for the video game. Unconstructive criticism typically:
+Analyze each message to determine if it contains either unsolicited and/or unconstructive criticism for the video game. Unconstructive criticism typically does one or more of the following:
 1. Offers negative feedback (which may or may not include specific issues)
 2. Focuses solely on flaws without acknowledging any positive aspects or providing encouragement (this is the most important)
 3. Lacks specific suggestions to fix stated issues
+4. Is a joke at someone elses expense; light-hearted jokes DO count
 
 A message can be exempt from the above if it satisfies any of the following:
-1. Is part of an ongoing multi-way discussion that has been going since before message index 0 (so you can't check whether it is solicited or not)
+1. The conversation has been going on from before index 0, so you don't have enough context
 2. Contains enough positive feedback to justify not flagging it
 3. The person asking for advice mentions they are ok with harsh criticism
-4. The person critiquing is criticising their own ships
+4. The person is criticizing their own ship
 5. The topic being discussed is not related to the video game
 6. The person being criticised is in the below list of people who have pre-opted-in to potentially harsh criticism
 
@@ -52,12 +53,15 @@ Examples of acceptable messages that should not be flagged:
 - "I like youre creative ship layouts. Some of them are worse than the established meta designs but for me its just important that those off meta layouts are well optimised in their own right."
 - "aye, it does look notably better than the other stuff. 5-launcher HE modules are unconventional, but definitely not bad, it's mostly the armour shaping that's an issue on that ship (big gaps, easy for rammers to hook onto or various things to snipe through)"
 
+If it looks like someone is trying to defend themselves from someone's criticism or comment instead of discussing as equals, then the criticism, comment, or joke is likely problematic.
+If someone did not explicitely ask for (solicit) criticism, then hold any comments on their designs, descriptions, or opinions to a higher standard. Anything that violates one of the bullet points for unconstructive criticism should be flagged.
+
 Create a list of indexes for messages that contain unsolicited and unconstructive criticism. If no messages are problematic, return an empty list.
 Take into account other messages by the same user to determine whether to flag a specific one. If that user included only negative criticism in one message, but positive in another, don't flag either.
 
 Provide your response in the following format:
 <analysis>
-[Your brief thought process and reasoning for potentially problematic messages; not quoting the messages themselves]
+[Your brief thought process and reasoning for potentially problematic messages, not quoting the messages themselves]
 </analysis>
 
 <result>

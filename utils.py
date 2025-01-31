@@ -87,7 +87,15 @@ def format_consecutive_user_messages(messages: list[discord.Message], relative_i
     reaction_str = f"\n[reactions: {', '.join(reactions)}]" if reactions else ""
     
     rel_id = f"({relative_id}) " if relative_id is not None else ""
-    reply = f"[reply to {reply_rel_id}] " if reply_rel_id is not None else ""
+    reply = ""
+    for msg in messages:
+        if msg.reference and msg.reference.resolved:
+            reference = msg.reference.resolved.author.display_name
+            pinged = len(msg.mentions) > 0
+            reply_str = f"{reply_rel_id}" if reply_rel_id else f"{'@' if pinged else ''}{reference}"
+            reply = f"[reply to {reply_str}] "
+            break
+
     
     return f"{rel_id}{reply}{author}: ❝{content}❞{edited}{reaction_str}".strip()
     

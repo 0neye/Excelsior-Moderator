@@ -112,7 +112,7 @@ class DiscordMessageGroup:
         self.channel = messages[0].channel
         self.count = len(messages)
         self.flagged = False
-        self.reply = None
+        self.reply_to = None
         self.reply_group_id = None
 
         if not all(msg.author == self.author for msg in messages):
@@ -120,9 +120,9 @@ class DiscordMessageGroup:
 
         for msg in messages:
             if msg.reference is not None:
-                self.reply = msg.reference.resolved
-                if isinstance(self.reply, discord.DeletedReferencedMessage):
-                    self.reply = None
+                self.reply_to = msg.reference.resolved
+                if isinstance(self.reply_to, discord.DeletedReferencedMessage):
+                    self.reply_to = None
                 break
     
     def flag(self):
@@ -176,19 +176,23 @@ class GroupedHistory:
         if current_group:
             self.groups.append(DiscordMessageGroup(current_group))
 
+        self._calc_replies()
+
+    def _calc_replies(self):
         self.count = len(self.groups)
 
         # Set reply_group_ids
         for i, group in enumerate(self.groups):
-            if group.reply:
-                for j in range(i - 1, -1, -1):
-                    if any(msg.id == group.reply.id for msg in self.groups[j].messages):
+            if group.reply_to:
+                for j in range(i):
+                    if any(msg.id == group.reply_to.id for msg in self.groups[j].messages):
                         group.update_reply_group_id(j)
                         break
 
     def last_n_groups(self, n: int) -> Self:
         """Get the last n groups in the history."""
         self.groups = self.groups[-n:]
+        self._calc_replies()
         return self
 
     def flag_groups(self, group_ids: list[int]) -> Self:
