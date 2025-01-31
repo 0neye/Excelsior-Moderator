@@ -1,13 +1,14 @@
 import asyncio
+import re
 from typing import Optional
 import discord
-from discord.ext import tasks
 from collections import deque
 import datetime
 from history import GroupedHistory, MessageHistory, MessageHistoryManager
 from message_store import FlaggedMessageStore
+import json
 
-from config import DISCORD_BOT_TOKEN, CHANNEL_ALLOW_LIST, GENERIC_PING_RESPONSE, GUIDELINES, HISTORY_PER_CHECK, LOG_CHANNEL_ID, MESSAGE_GROUPS_PER_CHECK, SECS_BETWEEN_AUTO_CHECKS, SEND_RESPONSES_TO_LOG_CHANNEL_ONLY, WAIVER_ROLE_NAME, REACT_WITH_EMOJI_IF_NOT_RESPONDING, REACTION_EMOJI, MODERATOR_ROLES
+from config import DISCORD_BOT_TOKEN, CHANNEL_ALLOW_LIST, EVALUATION_RESULTS_FILE, EVALUATION_STORE_FILE, GENERIC_PING_RESPONSE, GUIDELINES, HISTORY_PER_CHECK, LOG_CHANNEL_ID, MESSAGE_GROUPS_PER_CHECK, SECS_BETWEEN_AUTO_CHECKS, SEND_RESPONSES_TO_LOG_CHANNEL_ONLY, WAIVER_ROLE_NAME, REACT_WITH_EMOJI_IF_NOT_RESPONDING, REACTION_EMOJI, MODERATOR_ROLES
 from llms import extract_flagged_messages, flag_messages, flag_messages_in_thread, generate_user_feedback_message
 from utils import format_consecutive_user_messages, format_discord_message, respond_long_message, sanitize_external_content, send_long_message
 
@@ -98,11 +99,13 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     # We only want to flag new messages, and not ones near to the beginning of the visible context
     new_groups_since_last_check = max(MESSAGE_GROUPS_PER_CHECK, message_groups.get_group_count_since_last_check())
 
+    waived_people = history.get_members_with_waiver_role()
+
     global_llm_lock = True
     if isinstance(channel, discord.Thread):
-        llm_response = flag_messages_in_thread(channel, formatted_messages, history.get_members_with_waiver_role())
+        llm_response = flag_messages_in_thread(channel, formatted_messages, waived_people)
     else:
-        llm_response = flag_messages(formatted_messages, history.get_members_with_waiver_role())
+        llm_response = flag_messages(formatted_messages, waived_people)
     global_llm_lock = False
 
     print(f"LLM response: `{llm_response}`")
@@ -125,7 +128,7 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     for group in flagged_groups:
 
         for message in group.messages:
-            message_store.add_flagged_message(message)
+            message_store.add_flagged_message(message, group.relative_id, formatted_messages, llm_response, [member.display_name for member in waived_people])
 
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         print("Flagged message group:", group.format())
@@ -326,7 +329,80 @@ async def on_thread_update(before: discord.Thread, after: discord.Thread):
 #         if k in current_ids
 #     }
 
-# Example moderation command
+@bot.event
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    # Ignore bot reactions
+    if payload.user_id == bot.user.id:
+        return
+
+    # Check for thumbs up or thumbs down reactions on bot's messages in the log channel
+    if payload.emoji.name in ('👍', '👎') and payload.channel_id == LOG_CHANNEL_ID:
+        print(f"Valid reaction in log channel: {payload.emoji.name}")
+        channel = await bot.fetch_channel(payload.channel_id)
+        message = await channel.fetch_message(payload.message_id)
+
+        # Verify that the reaction is on a message sent by the bot
+        if message.author.id == bot.user.id:
+            print("Reaction is on bot's message")
+            # Extract flagged message ID from the jump URL in the message
+            match = re.search(r'https://discord\.com/channels/\d+/\d+/(\d+)', message.content)
+            if not match:
+                print("No jump URL found in message")
+                return  # Exit if no jump URL is found
+            flagged_message_id = int(match.group(1))
+            print(f"Extracted flagged message ID: {flagged_message_id}")
+
+            # Retrieve flagged message info from the message store
+            info = message_store.get_flagged_message(flagged_message_id)
+            history = info.get('history', None)
+            waived_people = info.get('waived_people', [])
+            relative_id = info.get('relative_id', None)
+            print(f"Retrieved info: history={len(history)}, waived_people={waived_people}, relative_id={relative_id}")
+
+            # Determine correct outcome based on reactions
+            reaction_counts = {r.emoji: r.count for r in message.reactions}
+            thumbs_up = reaction_counts.get('👍', 0)
+            thumbs_down = reaction_counts.get('👎', 0)
+            correct_outcome = thumbs_up >= thumbs_down
+            print(f"Correct outcome: {correct_outcome}")
+
+            # Create test case dictionary
+            test_case = {
+                'history': history,
+                'waived_people': waived_people,
+                'message_id': flagged_message_id,
+                'relative_id': relative_id,
+                'correct_outcome': correct_outcome
+            }
+            print("Created test case")
+
+            # Load existing test cases or create an empty list
+            try:
+                with open(EVALUATION_STORE_FILE, 'r') as f:
+                    content = f.read().strip()
+                    test_cases = json.loads(content) if content else []
+                print(f"Loaded {len(test_cases)} existing test cases")
+            except FileNotFoundError:
+                test_cases = []
+                print("No existing test cases found")
+            except json.JSONDecodeError:
+                print("Error decoding JSON, starting with empty list")
+                test_cases = []
+            
+            # Replace or append the test case
+            for i, case in enumerate(test_cases):
+                if case['message_id'] == test_case['message_id']:
+                    test_cases[i] = test_case
+                    break
+            else:
+                test_cases.append(test_case)
+            
+            # Save updated test cases
+            with open(EVALUATION_STORE_FILE, 'w') as f:
+                json.dump(test_cases, f, indent=4)
+            print(f"Saved {len(test_cases)} test cases to file")
+
+
 @bot.command(description="Check recent messages for unconstructive criticism")
 async def check(ctx: discord.ApplicationContext):
     """
@@ -347,5 +423,79 @@ async def check(ctx: discord.ApplicationContext):
     
     llm_response = await moderate(ctx.channel, history, HISTORY_PER_CHECK)
     await respond_long_message(ctx.interaction, f"Moderation check completed. LLM response:\n```{llm_response}```", ephemeral=True)
+
+
+@bot.command(description="Run evaluation over flagged examples (moderators only)")
+async def run_eval(ctx: discord.ApplicationContext):
+    # Check if the user has a moderator role
+    if not any(role.name in MODERATOR_ROLES for role in ctx.author.roles):
+        await ctx.respond("You do not have permission to run this command.", ephemeral=True)
+        return
+
+    # Load evaluation cases from EVALUATION_STORE_FILE
+    try:
+        with open(EVALUATION_STORE_FILE, 'r') as f:
+            eval_cases = json.load(f)
+    except FileNotFoundError:
+        await ctx.respond("No evaluation cases found.", ephemeral=True)
+        return
+
+    results = []
+    passed_count = 0
+
+    # Iterate over each evaluation case while respecting rate limits (~1 sec per case)
+    for case in eval_cases:
+        history = case.get('history', [])
+        waived_people = case.get('waived_people', [])
+        expected = case.get('correct_outcome', None)
+        relative_id = case.get('relative_id', None)
+
+        try:
+            # Call flag_messages from llms on the case's history
+            llm_response = flag_messages(history, waived_people)
+        except Exception as e:
+            llm_response = f"Error: {e}"
+
+        # Determine if the case passed
+        extracted = extract_flagged_messages(llm_response)
+        passed = (relative_id in extracted) == expected
+
+        if passed:
+            passed_count += 1
+        results.append({
+            'message_id': case.get('message_id'),
+            'llm_response': llm_response,
+            'expected': expected,
+            'relative_id': relative_id,
+            'passed': passed,
+            'waived_people': case.get('waived_people', [])
+        })
+        # For rate limits
+        await asyncio.sleep(1)
+
+    total_cases = len(eval_cases)
+    failed_count = total_cases - passed_count
+
+    # Create markdown content for detailed results
+    md_content = "# Evaluation Results\n\n"
+    md_content += f"Total Cases: {total_cases}\n"
+    md_content += f"Passed: {passed_count}\n"
+    md_content += f"Failed: {failed_count}\n\n"
+    md_content += "## Detailed Results\n\n"
+    for res in results:
+        md_content += f"### Message ID: {res['message_id']}\n"
+        md_content += f"- LLM Response: ```{res['llm_response']}```\n"
+        md_content += f"- Correct Relative ID: {res['relative_id']}\n"
+        md_content += f"- Passed: {res['passed']}\n"
+        md_content += f"- Waived People: {', '.join(res['waived_people'])}\n\n"
+
+    # Write markdown content to a file
+    with open(EVALUATION_RESULTS_FILE, "w") as f:
+        f.write(md_content)
+
+    overview = f"Evaluation complete: {total_cases} cases processed. {passed_count} passed, {failed_count} failed."
+
+    # Send a response with the overview and attach the markdown file
+    await ctx.respond(overview, file=discord.File(EVALUATION_RESULTS_FILE), ephemeral=True)
 
 bot.run(DISCORD_BOT_TOKEN)

@@ -105,12 +105,13 @@ class MessageHistoryManager:
 
 class DiscordMessageGroup:
     """A group of consecutive messages from the same user."""
-    def __init__(self, messages: list[discord.Message]):
+    def __init__(self, messages: list[discord.Message], relative_id: int = None):
         """Initialize with list of messages from same user."""
         self.messages = messages
         self.author = messages[0].author
         self.channel = messages[0].channel
         self.count = len(messages)
+        self.relative_id = relative_id
         self.flagged = False
         self.reply_to = None
         self.reply_group_id = None
@@ -153,6 +154,14 @@ class DiscordMessageGroup:
         """Format the message group as a string with optional IDs."""
         return format_consecutive_user_messages(self.messages, relative_id, reply_rel_id)
 
+    def __eq__(self, other):
+        if not self.messages or not other.messages:
+            return False
+        return self.messages[0].id == other.messages[0].id
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 class GroupedHistory:
     """
     A collection of DiscordMessageGroups representing the message history of a channel
@@ -170,11 +179,11 @@ class GroupedHistory:
             if not current_group or message.author == current_group[-1].author:
                 current_group.append(message)
             else:
-                self.groups.append(DiscordMessageGroup(current_group))
+                self.groups.append(DiscordMessageGroup(current_group, len(self.groups)))
                 current_group = [message]
         
         if current_group:
-            self.groups.append(DiscordMessageGroup(current_group))
+            self.groups.append(DiscordMessageGroup(current_group, len(self.groups)))
 
         self._calc_replies()
 
@@ -200,6 +209,14 @@ class GroupedHistory:
         for group_id in group_ids:
             self.groups[group_id].flag()
         return self
+
+    def get_group_by_id(self, group_id: int) -> Optional[DiscordMessageGroup]:
+        """Get a group by its ID."""
+        return self.groups[group_id] if 0 <= group_id < len(self.groups) else None
+
+    def get_id_of_group(self, group: DiscordMessageGroup) -> Optional[int]:
+        """Get the ID of a group."""
+        return self.groups.index(group)
 
     def oldest_message(self) -> discord.Message:
         """Get the oldest message in the history."""

@@ -12,6 +12,10 @@ CHANNEL_ALLOW_LIST = [1240462346808463362, 779084507768291379, 10773322891906253
 
 MODERATOR_ROLES = ["Sentinel (mod)", "Custodian (admin)"]
 
+FLAGGED_MESSAGE_STORE_FILE = "flagged_messages.json"
+EVALUATION_STORE_FILE = "convo_eval.json"
+EVALUATION_RESULTS_FILE = "eval_results.md"
+
 # How many message groups to wait for before sending them to the llm for moderation
 MESSAGE_GROUPS_PER_CHECK = 10
 

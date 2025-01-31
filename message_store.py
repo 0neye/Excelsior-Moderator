@@ -3,9 +3,10 @@ import os
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 import discord
+from config import FLAGGED_MESSAGE_STORE_FILE
 
 class FlaggedMessageStore:
-    def __init__(self, filepath: str = "flagged_messages.json"):
+    def __init__(self, filepath: str = FLAGGED_MESSAGE_STORE_FILE):
         self.filepath = filepath
         self._ensure_file_exists()
         
@@ -19,7 +20,28 @@ class FlaggedMessageStore:
         """Load all flagged messages from the JSON file."""
         try:
             with open(self.filepath, 'r') as f:
-                return json.load(f)
+                loaded = json.load(f)
+
+                # Update missing fields
+                if loaded:
+                    updated = False
+                    for item in loaded:
+                        if 'waived_people' not in item:
+                            item['waived_people'] = []
+                            updated = True
+                        if 'history' not in item:
+                            item['history'] = None
+                            updated = True
+                        if 'reason' not in item:
+                            item['reason'] = None
+                            updated = True
+                        if 'relative_id' not in item:
+                            item['relative_id'] = None
+                            updated = True
+                    if updated:
+                        self._save_messages(loaded)
+                return loaded
+
         except json.JSONDecodeError:
             return []
             
@@ -28,7 +50,7 @@ class FlaggedMessageStore:
         with open(self.filepath, 'w') as f:
             json.dump(messages, f, indent=2)
             
-    def add_flagged_message(self, message: discord.Message, reason: Optional[str] = None):
+    def add_flagged_message(self, message: discord.Message, relative_id: int, history: Optional[List[str]] = None, reason: Optional[str] = None, waived_people: Optional[List[str]] = None):
         """Add a new flagged message to the store."""
         # Check if message is already flagged
         if self.is_message_flagged(message.id):
@@ -47,6 +69,9 @@ class FlaggedMessageStore:
             "timestamp": message.created_at.isoformat(),
             "flagged_at": datetime.now(timezone.utc).isoformat(),
             "jump_url": message.jump_url,
+            "waived_people": waived_people or [],
+            "history": history,
+            "relative_id": relative_id,
             "reason": reason
         }
         
@@ -58,6 +83,11 @@ class FlaggedMessageStore:
         messages = self._load_messages()
         return any(msg["message_id"] == message_id for msg in messages)
         
+    def get_flagged_message(self, message_id: int) -> Optional[Dict]:
+        """Get a flagged message by its ID."""
+        messages = self._load_messages()
+        return next((msg for msg in messages if msg["message_id"] == message_id), None)
+
     def get_flagged_messages(self, 
                            user_id: Optional[int] = None, 
                            channel_id: Optional[int] = None,
