@@ -185,13 +185,14 @@ class GroupedHistory:
         if current_group:
             self.groups.append(DiscordMessageGroup(current_group, len(self.groups)))
 
-        self._calc_replies()
+        self._calc_rel_ids()
 
-    def _calc_replies(self):
+    def _calc_rel_ids(self):
         self.count = len(self.groups)
 
-        # Set reply_group_ids
+        # Set reply_group_ids and update relative_ids
         for i, group in enumerate(self.groups):
+            group.relative_id = i
             if group.reply_to:
                 for j in range(i):
                     if any(msg.id == group.reply_to.id for msg in self.groups[j].messages):
@@ -201,7 +202,7 @@ class GroupedHistory:
     def last_n_groups(self, n: int) -> Self:
         """Get the last n groups in the history."""
         self.groups = self.groups[-n:]
-        self._calc_replies()
+        self._calc_rel_ids()
         return self
 
     def flag_groups(self, group_ids: list[int]) -> Self:

@@ -128,7 +128,8 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     for group in flagged_groups:
 
         for message in group.messages:
-            message_store.add_flagged_message(message, group.relative_id, formatted_messages, llm_response, [member.display_name for member in waived_people])
+            rel_id = message_groups.get_id_of_group(group)
+            message_store.add_flagged_message(message, rel_id, formatted_messages, llm_response, [member.display_name for member in waived_people])
 
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         print("Flagged message group:", group.format())
