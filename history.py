@@ -217,7 +217,7 @@ class GroupedHistory:
 
     def get_id_of_group(self, group: DiscordMessageGroup) -> Optional[int]:
         """Get the ID of a group."""
-        return self.groups.index(group)
+        return next((i for i, g in enumerate(self.groups) if g.messages[-1].id == group.messages[-1].id), None)
 
     def oldest_message(self) -> discord.Message:
         """Get the oldest message in the history."""
