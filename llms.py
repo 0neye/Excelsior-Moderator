@@ -16,7 +16,7 @@ def flag_messages(messages: list[str], waived_people: list[discord.Member]) -> s
             {
                 "role": "user",
                 "content": f"""
-You will be given a list of Discord messages related to a video game. Your task is to identify messages that contain unsolicited and unconstructive criticism. 
+You will be given a list of Discord messages related to a video game (Cosmoteer: Ship Architect and Commander). Your task is to identify messages that contain unsolicited and unconstructive criticism. 
 
 Messages are in the format "(index) user: ❝content❞". Here is the list of messages:
 
@@ -24,7 +24,7 @@ Messages are in the format "(index) user: ❝content❞". Here is the list of me
 {messages}
 </discord_messages>
 
-Analyze each message to determine if it contains either unsolicited and/or unconstructive criticism for the video game. Unconstructive criticism typically does one or more of the following:
+Analyze each message to determine if it contains either unsolicited and/or unconstructive criticism for the Cosmoteer. Unconstructive criticism typically does one or more of the following:
 1. Offers negative feedback (which may or may not include specific issues)
 2. Focuses solely on flaws without acknowledging any positive aspects or providing encouragement (this is the most important)
 3. Lacks specific suggestions to fix stated issues
@@ -35,7 +35,7 @@ A message can be exempt from the above if it satisfies any of the following:
 2. Contains enough positive feedback to justify not flagging it
 3. The person asking for advice mentions they are ok with harsh criticism
 4. The person is criticizing themselves
-5. The topic being discussed is not related to the video game
+5. The topic being discussed is not related to Cosmoteer
 6. The person being criticised is in the below list of people who have pre-opted-in to potentially harsh criticism
 
 Here is that (potentially empty) list:
