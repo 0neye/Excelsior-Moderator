@@ -437,9 +437,8 @@ async def run_eval(ctx: discord.ApplicationContext):
     initial_response = await ctx.respond("running eval...", ephemeral=True)
     try:
         # Load evaluation cases from EVALUATION_STORE_FILE
-        with open(EVALUATION_STORE_FILE, 'r') as f:
+        with open(EVALUATION_STORE_FILE, 'r', encoding='utf-8') as f:
             eval_cases = json.load(f)
-
 
         results = []
         passed_count = 0
