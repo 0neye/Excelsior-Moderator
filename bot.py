@@ -379,7 +379,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
             # Load existing test cases or create an empty list
             try:
-                with open(EVALUATION_STORE_FILE, 'r') as f:
+                with open(EVALUATION_STORE_FILE, 'r', encoding='utf-8') as f:
                     content = f.read().strip()
                     test_cases = json.loads(content) if content else []
                 print(f"Loaded {len(test_cases)} existing test cases")
@@ -399,7 +399,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                 test_cases.append(test_case)
             
             # Save updated test cases
-            with open(EVALUATION_STORE_FILE, 'w') as f:
+            with open(EVALUATION_STORE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(test_cases, f, indent=4)
             print(f"Saved {len(test_cases)} test cases to file")
 
