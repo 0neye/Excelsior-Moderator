@@ -82,18 +82,18 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
         print("Bot message found in history. Skipping moderation.")
         return
 
+    global global_llm_lock
+    if global_llm_lock:
+        print("LLM is currently processing messages. Scheduling a retry...")
+        asyncio.create_task(retry_moderation(channel, history, history_per_check))
+        return
+
     print(f"Moderating channel {channel.id}... Using {history_per_check} message groups this check.")
 
     message_groups = GroupedHistory(history).last_n_groups(history_per_check)
 
     formatted_messages = message_groups.format_as_str_list()
     print("Formatted messages:\n", '\n'.join(formatted_messages))
-
-    global global_llm_lock
-    if global_llm_lock:
-        print("LLM is currently processing messages. Scheduling a retry...")
-        asyncio.create_task(retry_moderation(channel, history, history_per_check))
-        return
 
     # The number of groups added since the last check (the new ones)
     # We only want to flag new messages, and not ones near to the beginning of the visible context
@@ -230,8 +230,8 @@ async def on_message(message: discord.Message):
     # print(format_discord_messages(history.get_messages()))
 
     # Handle when a user mentions the bot
-    if bot.user in message.mentions:
-        await message.channel.send(GENERIC_PING_RESPONSE)
+    # if bot.user in message.mentions:
+    #     await message.channel.send(GENERIC_PING_RESPONSE)
 
 
 @bot.event
@@ -379,7 +379,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
             # Load existing test cases or create an empty list
             try:
-                with open(EVALUATION_STORE_FILE, 'r') as f:
+                with open(EVALUATION_STORE_FILE, 'r', encoding='utf-8') as f:
                     content = f.read().strip()
                     test_cases = json.loads(content) if content else []
                 print(f"Loaded {len(test_cases)} existing test cases")
@@ -399,7 +399,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                 test_cases.append(test_case)
             
             # Save updated test cases
-            with open(EVALUATION_STORE_FILE, 'w') as f:
+            with open(EVALUATION_STORE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(test_cases, f, indent=4)
             print(f"Saved {len(test_cases)} test cases to file")
 
@@ -433,70 +433,83 @@ async def run_eval(ctx: discord.ApplicationContext):
         await ctx.respond("You do not have permission to run this command.", ephemeral=True)
         return
 
-    # Load evaluation cases from EVALUATION_STORE_FILE
+    # Send an initial ephemeral message
+    initial_response = await ctx.respond("running eval...", ephemeral=True)
     try:
+        # Load evaluation cases from EVALUATION_STORE_FILE
         with open(EVALUATION_STORE_FILE, 'r') as f:
             eval_cases = json.load(f)
-    except FileNotFoundError:
-        await ctx.respond("No evaluation cases found.", ephemeral=True)
-        return
 
-    results = []
-    passed_count = 0
 
-    # Iterate over each evaluation case while respecting rate limits (~1 sec per case)
-    for case in eval_cases:
-        history = case.get('history', [])
-        waived_people = case.get('waived_people', [])
-        expected = case.get('correct_outcome', None)
-        relative_id = case.get('relative_id', None)
+        results = []
+        passed_count = 0
 
-        try:
-            # Call flag_messages from llms on the case's history
-            llm_response = flag_messages(history, waived_people)
-        except Exception as e:
-            llm_response = f"Error: {e}"
+        # Iterate over each evaluation case while respecting rate limits (~1 sec per case)
+        for case in eval_cases:
+            print(f"Processing case: {case.get('message_id')}")
+            history = case.get('history', [])
+            waived_people = case.get('waived_people', [])
+            expected = case.get('correct_outcome', None)
+            relative_id = case.get('relative_id', None)
 
-        # Determine if the case passed
-        extracted = extract_flagged_messages(llm_response)
-        passed = (relative_id in extracted) == expected
+            try:
+                print("Calling flag_messages...")
+                llm_response = flag_messages(history, waived_people)
+            except Exception as e:
+                print(f"Error in flag_messages: {e}")
+                llm_response = f"Error: {e}"
 
-        if passed:
-            passed_count += 1
-        results.append({
-            'message_id': case.get('message_id'),
-            'llm_response': llm_response,
-            'expected': expected,
-            'relative_id': relative_id,
-            'passed': passed,
-            'waived_people': case.get('waived_people', [])
-        })
-        # For rate limits
-        await asyncio.sleep(1)
+            print("Extracting flagged messages...")
+            extracted = extract_flagged_messages(llm_response)
+            passed = (relative_id in extracted) == expected
+            print(f"Case passed: {passed}")
 
-    total_cases = len(eval_cases)
-    failed_count = total_cases - passed_count
+            if passed:
+                passed_count += 1
+            results.append({
+                'message_id': case.get('message_id'),
+                'llm_response': llm_response,
+                'expected': expected,
+                'relative_id': relative_id,
+                'passed': passed,
+                'waived_people': case.get('waived_people', [])
+            })
 
-    # Create markdown content for detailed results
-    md_content = "# Evaluation Results\n\n"
-    md_content += f"Total Cases: {total_cases}\n"
-    md_content += f"Passed: {passed_count}\n"
-    md_content += f"Failed: {failed_count}\n\n"
-    md_content += "## Detailed Results\n\n"
-    for res in results:
-        md_content += f"### Message ID: {res['message_id']}\n"
-        md_content += f"- LLM Response: ```{res['llm_response']}```\n"
-        md_content += f"- Correct Relative ID: {res['relative_id']}\n"
-        md_content += f"- Passed: {res['passed']}\n"
-        md_content += f"- Waived People: {', '.join(res['waived_people'])}\n\n"
+            # Update progress
+            progress_message = f"Processed {len(results)}/{len(eval_cases)} cases. Current pass rate: {passed_count/len(results):.2%}"
+            await initial_response.edit(content=progress_message)
 
-    # Write markdown content to a file
-    with open(EVALUATION_RESULTS_FILE, "w") as f:
-        f.write(md_content)
+            await asyncio.sleep(1)
 
-    overview = f"Evaluation complete: {total_cases} cases processed. {passed_count} passed, {failed_count} failed."
+        total_cases = len(eval_cases)
+        failed_count = total_cases - passed_count
 
-    # Send a response with the overview and attach the markdown file
-    await ctx.respond(overview, file=discord.File(EVALUATION_RESULTS_FILE), ephemeral=True)
+        # Create markdown content for detailed results
+        md_content = "# Evaluation Results\n\n"
+        md_content += f"Total Cases: {total_cases}\n"
+        md_content += f"Passed: {passed_count}\n"
+        md_content += f"Failed: {failed_count}\n\n"
+        md_content += "## Detailed Results\n\n"
+        for res in results:
+            md_content += f"### Message ID: {res['message_id']}\n"
+            md_content += f"- LLM Response: ```{res['llm_response']}```\n"
+            md_content += f"- Correct Relative ID: {res['relative_id']}\n"
+            md_content += f"- Passed: {res['passed']}\n"
+            md_content += f"- Waived People: {', '.join(res['waived_people'])}\n\n"
+
+        # Write markdown content to a file
+        with open(EVALUATION_RESULTS_FILE, "w", encoding="utf-8") as f:
+            f.write(md_content)
+
+        overview = f"Evaluation complete: {total_cases} cases processed. {passed_count} passed, {failed_count} failed. Pass rate: {passed_count/total_cases:.2%}"
+
+        # Edit the initial ephemeral message with the updated summary
+        await initial_response.edit(content=overview)
+
+        # Send a followup ephemeral message with an attachment containing the full report
+        await ctx.followup.send(file=discord.File(EVALUATION_RESULTS_FILE), ephemeral=True)
+    except Exception as e:
+        error_message = f"Error during evaluation: {e}"
+        await initial_response.edit(content=error_message)
 
 bot.run(DISCORD_BOT_TOKEN)
