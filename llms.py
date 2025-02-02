@@ -31,7 +31,7 @@ Analyze each message to determine if it contains either unsolicited and/or uncon
 4. Is a joke at someone elses expense
 
 A message can be exempt from the above if it satisfies any of the following:
-1. The conversation has been going on from before index 0, so you don't have enough context
+1. The criticism references something or someone outside of the provided context
 2. Contains enough positive feedback to justify not flagging it
 3. The person asking for advice mentions they are ok with harsh criticism
 4. The person is criticizing themselves

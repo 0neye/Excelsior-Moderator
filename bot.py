@@ -4,7 +4,7 @@ from typing import Optional
 import discord
 from collections import deque
 import datetime
-from history import GroupedHistory, MessageHistory, MessageHistoryManager
+from history import DiscordMessageGroup, GroupedHistory, MessageHistory, MessageHistoryManager
 from message_store import FlaggedMessageStore
 from eval_handler import EvalHandler
 import json
@@ -20,6 +20,14 @@ bot = discord.Bot(intents=discord.Intents.all())
 history_manager = MessageHistoryManager()
 message_store = FlaggedMessageStore()
 eval_handler = EvalHandler(message_store)
+
+
+def get_all_members_with_waiver_role(guild: discord.Guild) -> list[discord.Member]:
+    """
+    Returns a list of members with the waiver role. Use if you don't have the recent history context.
+    """
+    waiver_role = discord.utils.get(guild.roles, name=WAIVER_ROLE_NAME)
+    return [member for member in waiver_role.members if not member.bot]
 
 
 async def check_channel_on_timer(channel: discord.TextChannel | discord.Thread, secs: int):
@@ -66,6 +74,20 @@ async def retry_moderation(channel: discord.TextChannel | discord.Thread, histor
     while global_llm_lock:
         await asyncio.sleep(2)
     await moderate(channel, history, messages_per_check)
+
+async def _log_flagged_group(group: DiscordMessageGroup, manual: bool = False):
+    """
+    Logs a message group to the flagged messages channel.
+    
+    Args:
+        group (DiscordMessageGroup): The message group to log
+    """
+    if not group.messages:
+        return
+    log_channel = bot.get_channel(LOG_CHANNEL_ID)
+    print("Manual flag:" if manual else "Flagged message group:", group.format())
+    await send_long_message(log_channel, f"{'Manual flag' if manual else 'Flagged message group'}: {group.oldest_message().jump_url}\nContent: ```{group.format()[:200]}{'...' if len(group.format()) > 200 else ''}```")
+
 
 async def moderate(channel: discord.TextChannel | discord.Thread, history: MessageHistory, history_per_check: int) -> str:
     """
@@ -133,9 +155,7 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
             rel_id = message_groups.get_id_of_group(group)
             message_store.add_flagged_message(message, rel_id, formatted_messages, llm_response, [member.display_name for member in waived_people])
 
-        log_channel = bot.get_channel(LOG_CHANNEL_ID)
-        print("Flagged message group:", group.format())
-        await send_long_message(log_channel, f"Flagged message: {group.oldest_message().jump_url}\nContent: ```{group.format()[:200]}{'...' if len(group.format()) > 200 else ''}```")
+        await _log_flagged_group(group)
 
     # If we should only send flagged messages to a log channel and not respond to the user
     if SEND_RESPONSES_TO_LOG_CHANNEL_ONLY:
@@ -322,15 +342,6 @@ async def on_thread_update(before: discord.Thread, after: discord.Thread):
     if after.archived:
         history_manager.histories.pop(after.id, None)
 
-# @tasks.loop(seconds=300)
-# async def history_cleanup():
-#     # Cleanup histories for deleted channels/threads
-#     current_ids = {channel.id for channel in bot.get_all_channels()}
-#     current_ids.update({thread.id for thread in bot.private_threads})
-#     history_manager.histories = {
-#         k: v for k, v in history_manager.histories.items()
-#         if k in current_ids
-#     }
 
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
@@ -366,6 +377,42 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                 print("Test case added")
             else:
                 print("Test case updated")
+    
+    # If a moderator manually flags a message
+    elif payload.emoji.name == '👁️':
+
+        # Check if the user who reacted has a moderator role
+        guild = bot.get_guild(payload.guild_id)
+        if not guild:
+            return
+
+        member = await guild.fetch_member(payload.user_id)
+        if not any(role.name in MODERATOR_ROLES for role in member.roles):
+            return
+
+        # Fetch the channel and message
+        channel = await bot.fetch_channel(payload.channel_id)
+        message = await channel.fetch_message(payload.message_id)
+
+        print(f"Got a manual flag in {channel.name} by {member.name}")
+
+        # Get the message history from discord around the flagged message (~10 after and 40 before)
+        # Since we can't be sure this message isn't really old
+        messages_after = await channel.history(limit=10, after=message.created_at).flatten()
+        messages_before = await channel.history(limit=40, before=message.created_at, oldest_first=True).flatten()
+        context_messages = messages_before + [message] + messages_after
+
+        temp_history = MessageHistory(context_messages)
+        grouped = GroupedHistory(temp_history)
+        formatted_messages = grouped.format_as_str_list()
+        group = grouped.get_group_by_message_id(message.id)
+        group.flag()
+
+        # Store the flagged message (only one since we know it's this specific discord message)
+        message_store.add_flagged_message(message, group.relative_id, formatted_messages, waived_people=[member.display_name for member in temp_history.get_members_with_waiver_role()])
+        
+        # Log it
+        await _log_flagged_group(group, True)
 
 
 @bot.command(description="Check recent messages for unconstructive criticism")
@@ -400,9 +447,7 @@ async def run_eval(ctx: discord.ApplicationContext):
     # Send an initial ephemeral message
     initial_response = await ctx.respond("running eval...", ephemeral=True)
     try:
-        # Load evaluation cases from EVALUATION_STORE_FILE
-        with open(EVALUATION_STORE_FILE, 'r', encoding='utf-8') as f:
-            eval_cases = json.load(f)
+        eval_cases = eval_handler.get_eval_cases()
 
         results = []
         passed_count = 0

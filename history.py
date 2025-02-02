@@ -10,11 +10,15 @@ from utils import format_consecutive_user_messages
 
 class MessageHistory:
     """A class to manage message history for a channel with a fixed maximum length."""
-    def __init__(self, maxlen=50):
+    def __init__(self, history: list[discord.Message] = None, maxlen=50):
         """Initialize history with max length of messages."""
         self.messages = deque(maxlen=maxlen)
         self.messages_since_last_check = 0
         self.time_of_last_message = None
+
+        if history:
+            for message in history:
+                self.add_message(message)
     
     def add_message(self, message: discord.Message):
         """Add a new message to the history."""
@@ -150,6 +154,10 @@ class DiscordMessageGroup:
         """Get the newest message in the group."""
         return max(self.messages, key=lambda msg: msg.created_at)
 
+    def has_message(self, message_id: int) -> bool:
+        """Check if a message with the given ID is in the group."""
+        return any(msg.id == message_id for msg in self.messages)
+
     def format(self, relative_id: Optional[int] = None, reply_rel_id: Optional[int] = None) -> str:
         """Format the message group as a string with optional IDs."""
         return format_consecutive_user_messages(self.messages, relative_id, reply_rel_id)
@@ -219,6 +227,10 @@ class GroupedHistory:
         """Get the ID of a group."""
         return next((i for i, g in enumerate(self.groups) if g.messages[-1].id == group.messages[-1].id), None)
 
+    def get_group_by_message_id(self, message_id: int) -> Optional[DiscordMessageGroup]:
+        """Get a group by its message ID."""
+        return next((group for group in self.groups if group.has_message(message_id)), None)
+
     def oldest_message(self) -> discord.Message:
         """Get the oldest message in the history."""
         return min(self.base_history.get_messages(), key=lambda msg: msg.created_at)
@@ -246,10 +258,6 @@ class GroupedHistory:
         """Get the newest message group from a specific user."""
         user_groups = [group for group in self.groups if group.author.id == user_id]
         return max(user_groups, key=lambda g: g.newest_message().created_at) if user_groups else None
-
-    def get_group(self, group_id: int) -> Optional[DiscordMessageGroup]:
-        """Get a message group by its ID."""
-        return self.groups[group_id] if 0 <= group_id < len(self.groups) else None
 
     def get_flagged_groups(self) -> list[DiscordMessageGroup]:
         """Get all flagged message groups."""
