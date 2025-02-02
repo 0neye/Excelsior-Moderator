@@ -502,9 +502,15 @@ async def run_eval(ctx: discord.ApplicationContext):
         md_content += f"Failed: {failed_count}\n\n"
         md_content += "## Detailed Results\n\n"
         for res in results:
-            md_content += f"### Message ID: {res['message_id']}\n"
+            flagged_message = message_store.get_flagged_message(res['message_id'])
+            if flagged_message:
+                md_content += f"### Message link: {flagged_message['jump_url']}\n"
+                md_content += f"- Original Message: {flagged_message['content']}\n"
+            else:
+                md_content += f"### Message id: {res['message_id']}\n"
             md_content += f"- LLM Response: ```{res['llm_response']}```\n"
-            md_content += f"- Correct Relative ID: {res['relative_id']}\n"
+            md_content += f"- Relative ID: {res['relative_id']}\n"
+            md_content += f"- Should have flagged: {res['expected']}\n"
             md_content += f"- Passed: {res['passed']}\n"
             md_content += f"- Waived People: {', '.join(res['waived_people'])}\n\n"
 
