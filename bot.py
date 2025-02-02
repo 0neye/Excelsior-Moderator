@@ -480,7 +480,12 @@ async def run_eval(ctx: discord.ApplicationContext):
                 llm_response = f"Error: {e}"
 
             print("Extracting flagged messages...")
-            extracted = extract_flagged_messages(llm_response)
+            extracted_tuple = extract_flagged_messages(llm_response)
+            if extracted_tuple is None:
+                continue
+
+            extracted, confidence = extracted_tuple
+
             passed = (relative_id in extracted) == expected
             print(f"Case passed: {passed}")
 
