@@ -48,7 +48,7 @@ class FlaggedMessageStore:
     def _save_messages(self, messages: List[Dict]):
         """Save messages to the JSON file."""
         with open(self.filepath, 'w') as f:
-            json.dump(messages, f, indent=2)
+            json.dump(messages, f, indent=4)
             
     def add_flagged_message(self, message: discord.Message, relative_id: int, history: Optional[List[str]] = None, reason: Optional[str] = None, waived_people: Optional[List[str]] = None):
         """Add a new flagged message to the store."""

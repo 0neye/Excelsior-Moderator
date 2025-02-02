@@ -392,6 +392,9 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
         # Fetch the channel and message
         channel = await bot.fetch_channel(payload.channel_id)
+        if channel.id not in CHANNEL_ALLOW_LIST:
+            return
+
         message = await channel.fetch_message(payload.message_id)
 
         print(f"Got a manual flag in {channel.name} by {member.name}")
