@@ -134,9 +134,16 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
 
     print(f"LLM response: `{llm_response}`")
 
-    extracted = extract_flagged_messages(llm_response)
+    extracted_tuple = extract_flagged_messages(llm_response)
 
+    if extracted_tuple is None:
+        print("Failed to extract flagged messages. Stopping moderation.")
+        return llm_response
+
+    extracted, confidence = extracted_tuple
+    
     print("Flagged message indexes:", extracted)
+    print("Confidence:", confidence)
 
     if not extracted:
         return llm_response

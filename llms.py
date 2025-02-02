@@ -1,3 +1,4 @@
+from typing import Dict, List, Tuple
 from cerebras.cloud.sdk import Cerebras
 import discord
 from config import CEREBRAS_API_KEY
@@ -30,12 +31,12 @@ Analyze each message to determine if it contains either unsolicited and/or uncon
 3. Lacks specific suggestions to fix stated issues
 4. Is a joke at someone elses expense
 
-A message can be exempt from the above if it satisfies any of the following:
+A message is exempt from the above if it satisfies any of the following:
 1. The criticism references something or someone outside of the provided context
 2. Contains enough positive feedback to justify not flagging it
 3. The person asking for advice mentions they are ok with harsh criticism
 4. The person is criticizing themselves
-5. The topic being discussed is not related to Cosmoteer
+5. The criticism is directed at the game in general, someone not present in the conversation, or something unrelated to Cosmoteer
 6. The person being criticised is in the below list of people who have pre-opted-in to potentially harsh criticism
 
 Here is that (potentially empty) list:
@@ -43,29 +44,24 @@ Here is that (potentially empty) list:
 {waived_people_names}
 </waived_people>
 
-Examples of problematic messages include:
-- "variety of suboptimal decisions with no clear reasoning behind choosing them over more conventionally optimal things"
-- "Your missing significant side / rear armor on a majority of ships ammo factories are objectively never needed in dom"
-- "Where efficacy"
-
-Examples of acceptable messages that should not be flagged:
-- "I share a similar opinion that the others. Do you want a more detailed breakdown on your ships?"
-- "I like youre creative ship layouts. Some of them are worse than the established meta designs but for me its just important that those off meta layouts are well optimised in their own right."
-- "aye, it does look notably better than the other stuff. 5-launcher HE modules are unconventional, but definitely not bad, it's mostly the armour shaping that's an issue on that ship (big gaps, easy for rammers to hook onto or various things to snipe through)"
-
 If it looks like someone is trying to defend themselves from someone elses criticism or comment instead of discussing as equals, then the criticism, comment, or joke is likely problematic.
 If someone did not explicitely ask for (solicit) criticism, then hold any comments on their designs, descriptions, or opinions to a higher standard. Anything that violates one of the bullet points for unconstructive criticism should be flagged.
 
 Create a list of indexes for messages that contain unsolicited and unconstructive criticism. If no messages are problematic, return an empty list.
 Take into account other messages by the same user to determine whether to flag a specific one. If that user included only negative criticism in one message, but positive in another, don't flag either.
 
-Provide your response in the following format:
+For each flagged message, assign a confidence level:
+ - "high": Clear violation with obvious targeting of users/work
+ - "medium": Likely problematic but contains some ambiguity
+ - "low": Potentially problematic but requires more context
+
+Provide your response in the following format (result section should be a valid python dict):
 <analysis>
 [Your brief thought process and reasoning for potentially problematic messages, not quoting the messages themselves]
 </analysis>
 
 <result>
-[List of indexes for actually problematic messages, or an empty list if none are found]
+{{"message_ids": [list of indexes], "confidence": {{"index": "confidence_level", ...}}}}
 </result>
 """.strip(),
             }
@@ -91,22 +87,24 @@ def flag_messages_in_thread(thread: discord.Thread, messages: list[str], waived_
 
 
 
-def extract_flagged_messages(llm_response: str) -> list[int]:
-
-    # Remove everything before the closing analysis tag
-    llm_response = llm_response.split('</analysis>')[-1].strip()
-
-    result_pattern = r'<result>\s*\[(.*?)\]\s*</result>'
-    match = re.search(result_pattern, llm_response, re.DOTALL)
+def extract_flagged_messages(llm_response: str) -> Tuple[List[int], Dict[int, str]]:
+    try:
+        llm_response = llm_response.split('</analysis>')[-1].strip()
+        result_pattern = r'<result>\s*(\{.*?\})\s*</result>'
+        match = re.search(result_pattern, llm_response, re.DOTALL)
+        
+        if match:
+            result_str = match.group(1).strip()
+            if result_str:
+                result_dict = eval(result_str)
+                message_ids = result_dict.get('message_ids', [])
+                confidence = result_dict.get('confidence', {})
+                return message_ids, confidence
+    except Exception as e:
+        print(f"Error extracting flagged messages: {e}")
+        return None
     
-    if match:
-        result_str = match.group(1).strip()
-        if result_str:
-            return [int(idx.strip()) for idx in result_str.split(',')]
-        else:
-            return []
-    else:
-        return []
+    return [], {}
 
 async def generate_user_feedback_message(message_strs: list[str], message_indexes: list[int], guidelines: str) -> str:
     
