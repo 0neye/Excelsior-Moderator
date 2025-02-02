@@ -6,6 +6,7 @@ from collections import deque
 import datetime
 from history import GroupedHistory, MessageHistory, MessageHistoryManager
 from message_store import FlaggedMessageStore
+from eval_handler import EvalHandler
 import json
 
 from config import DISCORD_BOT_TOKEN, CHANNEL_ALLOW_LIST, EVALUATION_RESULTS_FILE, EVALUATION_STORE_FILE, GENERIC_PING_RESPONSE, GUIDELINES, HISTORY_PER_CHECK, LOG_CHANNEL_ID, MESSAGE_GROUPS_PER_CHECK, SECS_BETWEEN_AUTO_CHECKS, SEND_RESPONSES_TO_LOG_CHANNEL_ONLY, WAIVER_ROLE_NAME, REACT_WITH_EMOJI_IF_NOT_RESPONDING, REACTION_EMOJI, MODERATOR_ROLES
@@ -18,6 +19,7 @@ global_check_timers_running = {}
 bot = discord.Bot(intents=discord.Intents.all())
 history_manager = MessageHistoryManager()
 message_store = FlaggedMessageStore()
+eval_handler = EvalHandler(message_store)
 
 
 async def check_channel_on_timer(channel: discord.TextChannel | discord.Thread, secs: int):
@@ -353,13 +355,6 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             flagged_message_id = int(match.group(1))
             print(f"Extracted flagged message ID: {flagged_message_id}")
 
-            # Retrieve flagged message info from the message store
-            info = message_store.get_flagged_message(flagged_message_id)
-            history = info.get('history', None)
-            waived_people = info.get('waived_people', [])
-            relative_id = info.get('relative_id', None)
-            print(f"Retrieved info: history={len(history)}, waived_people={waived_people}, relative_id={relative_id}")
-
             # Determine correct outcome based on reactions
             reaction_counts = {r.emoji: r.count for r in message.reactions}
             thumbs_up = reaction_counts.get('👍', 0)
@@ -367,41 +362,10 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             correct_outcome = thumbs_up >= thumbs_down
             print(f"Correct outcome: {correct_outcome}")
 
-            # Create test case dictionary
-            test_case = {
-                'history': history,
-                'waived_people': waived_people,
-                'message_id': flagged_message_id,
-                'relative_id': relative_id,
-                'correct_outcome': correct_outcome
-            }
-            print("Created test case")
-
-            # Load existing test cases or create an empty list
-            try:
-                with open(EVALUATION_STORE_FILE, 'r', encoding='utf-8') as f:
-                    content = f.read().strip()
-                    test_cases = json.loads(content) if content else []
-                print(f"Loaded {len(test_cases)} existing test cases")
-            except FileNotFoundError:
-                test_cases = []
-                print("No existing test cases found")
-            except json.JSONDecodeError:
-                print("Error decoding JSON, starting with empty list")
-                test_cases = []
-            
-            # Replace or append the test case
-            for i, case in enumerate(test_cases):
-                if case['message_id'] == test_case['message_id']:
-                    test_cases[i] = test_case
-                    break
+            if eval_handler.add_eval_case(flagged_message_id, correct_outcome):
+                print("Test case added")
             else:
-                test_cases.append(test_case)
-            
-            # Save updated test cases
-            with open(EVALUATION_STORE_FILE, 'w', encoding='utf-8') as f:
-                json.dump(test_cases, f, indent=4)
-            print(f"Saved {len(test_cases)} test cases to file")
+                print("Test case updated")
 
 
 @bot.command(description="Check recent messages for unconstructive criticism")
