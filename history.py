@@ -207,10 +207,11 @@ class GroupedHistory:
                         group.update_reply_group_id(j)
                         break
 
-    def last_n_groups(self, n: int) -> Self:
+    def last_n_groups(self, n: int, update_rel_ids: bool = True) -> Self:
         """Get the last n groups in the history."""
         self.groups = self.groups[-n:]
-        self._calc_rel_ids()
+        if update_rel_ids:
+            self._calc_rel_ids()
         return self
 
     def flag_groups(self, group_ids: list[int]) -> Self:

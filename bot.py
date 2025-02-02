@@ -143,7 +143,7 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     
     flagged_groups = message_groups \
         .flag_groups(extracted) \
-        .last_n_groups(new_groups_since_last_check) \
+        .last_n_groups(new_groups_since_last_check, update_rel_ids=False) \
         .get_flagged_groups()
 
     flagged_groups = [group for group in flagged_groups if not group.is_in_store(message_store)]
@@ -151,23 +151,25 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     # Always add flagged messages to the store and send a log to the log channel
     for group in flagged_groups:
 
+        rel_id = group.relative_id
+
+        if rel_id not in extracted:
+            print(f"Warning: Group ID ({rel_id}) being flagged was not in the list of extracted message indexes ({extracted}). Starting message: {group.oldest_message().jump_url}")
+            continue
+
         for message in group.messages:
-            rel_id = message_groups.get_id_of_group(group)
             message_store.add_flagged_message(message, rel_id, formatted_messages, llm_response, [member.display_name for member in waived_people])
 
         await _log_flagged_group(group)
 
-    # If we should only send flagged messages to a log channel and not respond to the user
-    if SEND_RESPONSES_TO_LOG_CHANNEL_ONLY:
-        
+        # If we should only send flagged messages to a log channel and not respond to the user
         # If we should react with emojis as a subsitute
-        if REACT_WITH_EMOJI_IF_NOT_RESPONDING:
-            for group in flagged_groups:
-                await group.newest_message().add_reaction(REACTION_EMOJI)
+        if SEND_RESPONSES_TO_LOG_CHANNEL_ONLY and REACT_WITH_EMOJI_IF_NOT_RESPONDING:
+            await group.newest_message().add_reaction(REACTION_EMOJI)
 
-    # If we do want to directly respond to the user
-    else:
-        pass
+        # If we do want to directly respond to the user
+        else:
+            pass
 
     return llm_response
 
