@@ -10,7 +10,7 @@ from eval_handler import EvalHandler
 import json
 
 from config import DISCORD_BOT_TOKEN, CHANNEL_ALLOW_LIST, EVALUATION_RESULTS_FILE, EVALUATION_STORE_FILE, GENERIC_PING_RESPONSE, GUIDELINES, HISTORY_PER_CHECK, LOG_CHANNEL_ID, MESSAGE_GROUPS_PER_CHECK, SECS_BETWEEN_AUTO_CHECKS, SEND_RESPONSES_TO_LOG_CHANNEL_ONLY, WAIVER_ROLE_NAME, REACT_WITH_EMOJI_IF_NOT_RESPONDING, REACTION_EMOJI, MODERATOR_ROLES
-from llms import extract_flagged_messages, flag_messages, flag_messages_in_thread, generate_user_feedback_message
+from llms import extract_flagged_messages, flag_messages, flag_messages_in_thread, generate_user_feedback_message, filter_confidence
 from utils import format_consecutive_user_messages, format_discord_message, respond_long_message, sanitize_external_content, send_long_message
 
 global_llm_lock = False
@@ -145,11 +145,18 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     print("Flagged message indexes:", extracted)
     print("Confidence:", confidence)
 
-    if not extracted:
+    # Filter out low confidence flagged messages
+    confidence_threshold = 'high'
+    filtered_extracted = filter_confidence(confidence, confidence_threshold)
+    
+    if not filtered_extracted:
+        print(f"All flagged messages were below the confidence threshold of {confidence_threshold}. Skipping moderation.")
         return llm_response
     
+    print(f"Filtered flagged message indexes: {filtered_extracted}")
+    
     flagged_groups = message_groups \
-        .flag_groups(extracted) \
+        .flag_groups(filtered_extracted) \
         .last_n_groups(new_groups_since_last_check, update_rel_ids=False) \
         .get_flagged_groups()
 
@@ -160,8 +167,8 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
 
         rel_id = group.relative_id
 
-        if rel_id not in extracted:
-            print(f"Warning: Group ID ({rel_id}) being flagged was not in the list of extracted message indexes ({extracted}). Starting message: {group.oldest_message().jump_url}")
+        if rel_id not in filtered_extracted:
+            print(f"Warning: Group ID ({rel_id}) being flagged was not in the list of extracted message indexes ({filtered_extracted}). Starting message: {group.oldest_message().jump_url}")
             continue
 
         for message in group.messages:
@@ -425,6 +432,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         formatted_messages = grouped.format_as_str_list()
         group = grouped.get_group_by_message_id(message.id)
         group.flag()
+        message.add_reaction(REACTION_EMOJI) # Add our own reaction
 
         # Store the flagged message (only one since we know it's this specific discord message)
         message_store.add_flagged_message(message, group.relative_id, formatted_messages, waived_people=[member.display_name for member in temp_history.get_members_with_waiver_role()])
@@ -492,7 +500,9 @@ async def run_eval(ctx: discord.ApplicationContext):
 
             extracted, confidence = extracted_tuple
 
-            passed = (relative_id in extracted) == expected
+            filtered_extracted = filter_confidence(confidence, "high")
+
+            passed = (relative_id in filtered_extracted) == expected
             print(f"Case passed: {passed}")
 
             if passed:
