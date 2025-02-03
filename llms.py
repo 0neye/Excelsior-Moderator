@@ -117,15 +117,17 @@ def extract_flagged_messages(llm_response: str) -> Tuple[List[int], Dict[int, st
     
     return [], {}
 
+
 def filter_confidence(confidence: Dict[int, str], confidence_threshold: str) -> List[int]:
-    if confidence_threshold == 'low':
-        return [idx for idx, conf in confidence.items() if conf == 'low' or conf == 'medium' or conf == 'high']
-    elif confidence_threshold == 'medium':
-        return [idx for idx, conf in confidence.items() if conf == 'medium' or conf == 'high']
-    elif confidence_threshold == 'high':
-        return [idx for idx, conf in confidence.items() if conf == 'high']
-    else:
+    valid_thresholds = {'low': ['low', 'medium', 'high'],
+                        'medium': ['medium', 'high'],
+                        'high': ['high']}
+    
+    if confidence_threshold not in valid_thresholds:
         raise ValueError(f"Invalid confidence threshold: {confidence_threshold}")
+    
+    return [idx for idx, conf in confidence.items() if conf in valid_thresholds[confidence_threshold]]
+
 
 async def generate_user_feedback_message(message_strs: list[str], message_indexes: list[int], guidelines: str) -> str:
     
