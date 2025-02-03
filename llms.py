@@ -45,6 +45,16 @@ Here is that (potentially empty) list:
 {waived_people_names}
 </waived_people>
 
+Examples of problematic messages include:
+- "variety of suboptimal decisions with no clear reasoning behind choosing them over more conventionally optimal things"
+- "Your missing significant side / rear armor on a majority of ships ammo factories are objectively never needed in dom"
+- "Where efficacy"
+
+Examples of acceptable messages that should not be flagged:
+- "I share a similar opinion that the others. Do you want a more detailed breakdown on your ships?"
+- "I like youre creative ship layouts. Some of them are worse than the established meta designs but for me its just important that those off meta layouts are well optimised in their own right."
+- "aye, it does look notably better than the other stuff. 5-launcher HE modules are unconventional, but definitely not bad, it's mostly the armour shaping that's an issue on that ship (big gaps, easy for rammers to hook onto or various things to snipe through)"
+
 If it looks like someone is trying to defend themselves from someone elses criticism or comment instead of discussing as equals, then the criticism, comment, or joke is likely problematic.
 If someone did not explicitely ask for (solicit) criticism, then hold any comments on their designs, descriptions, or opinions to a higher standard. Anything that violates one of the bullet points for unconstructive criticism should be flagged.
 

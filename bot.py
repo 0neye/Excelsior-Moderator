@@ -146,7 +146,7 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     print("Confidence:", confidence)
 
     # Filter out low confidence flagged messages
-    confidence_threshold = 'medium'
+    confidence_threshold = 'high'
     filtered_extracted = filter_confidence(confidence, confidence_threshold)
     
     if not filtered_extracted:
@@ -426,6 +426,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         formatted_messages = grouped.format_as_str_list()
         group = grouped.get_group_by_message_id(message.id)
         group.flag()
+        message.add_reaction(REACTION_EMOJI) # Add our own reaction
 
         # Store the flagged message (only one since we know it's this specific discord message)
         message_store.add_flagged_message(message, group.relative_id, formatted_messages, waived_people=[member.display_name for member in temp_history.get_members_with_waiver_role()])
@@ -493,7 +494,7 @@ async def run_eval(ctx: discord.ApplicationContext):
 
             extracted, confidence = extracted_tuple
 
-            filtered_extracted = filter_confidence(confidence, "medium")
+            filtered_extracted = filter_confidence(confidence, "high")
 
             passed = (relative_id in filtered_extracted) == expected
             print(f"Case passed: {passed}")
