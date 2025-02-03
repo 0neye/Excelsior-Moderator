@@ -413,6 +413,12 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
         message = await channel.fetch_message(payload.message_id)
 
+        # Check if the bot has already reacted with an eye
+        existing_reactions = [reaction for reaction in message.reactions if reaction.emoji == '👁️' and reaction.me]
+        if existing_reactions:
+            print(f"Bot has already reacted to message {message.id}")
+            return
+
         print(f"Got a manual flag in {channel.name} by {member.name}")
 
         # Get the message history from discord around the flagged message (~10 after and 40 before)
