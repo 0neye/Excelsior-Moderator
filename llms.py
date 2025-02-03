@@ -37,7 +37,8 @@ A message is exempt from the above if it satisfies any of the following:
 3. The person asking for advice mentions they are ok with harsh criticism
 4. The person is criticizing themselves
 5. The criticism is directed at the game in general, someone not present in the conversation, or something unrelated to Cosmoteer
-6. The person being criticised is in the below list of people who have pre-opted-in to potentially harsh criticism
+6. The criticism is sarcastic ('~~message~~' and '/s' syntax is usually sarcasm, but there may not be an explicit indicator)
+7. The person being criticised is in the below list of people who have pre-opted-in to potentially harsh criticism
 
 Here is that (potentially empty) list:
 <waived_people>
@@ -105,6 +106,16 @@ def extract_flagged_messages(llm_response: str) -> Tuple[List[int], Dict[int, st
         return None
     
     return [], {}
+
+def filter_confidence(confidence: Dict[int, str], confidence_threshold: str) -> List[int]:
+    if confidence_threshold == 'low':
+        return [idx for idx, conf in confidence.items() if conf == 'low' or conf == 'medium' or conf == 'high']
+    elif confidence_threshold == 'medium':
+        return [idx for idx, conf in confidence.items() if conf == 'medium' or conf == 'high']
+    elif confidence_threshold == 'high':
+        return [idx for idx, conf in confidence.items() if conf == 'high']
+    else:
+        raise ValueError(f"Invalid confidence threshold: {confidence_threshold}")
 
 async def generate_user_feedback_message(message_strs: list[str], message_indexes: list[int], guidelines: str) -> str:
     
