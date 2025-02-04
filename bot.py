@@ -395,7 +395,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                 print("Test case updated")
     
     # If a moderator manually flags a message
-    elif payload.emoji.name == '👁️':
+    elif payload.emoji.name == REACTION_EMOJI:
 
         # Check if the user who reacted has a moderator role
         guild = bot.get_guild(payload.guild_id)
@@ -414,7 +414,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         message = await channel.fetch_message(payload.message_id)
 
         # Check if the bot has already reacted with an eye
-        existing_reactions = [reaction for reaction in message.reactions if reaction.emoji == '👁️' and reaction.me]
+        existing_reactions = [reaction for reaction in message.reactions if reaction.emoji == REACTION_EMOJI and reaction.me]
         if existing_reactions:
             print(f"Bot has already reacted to message {message.id}")
             return

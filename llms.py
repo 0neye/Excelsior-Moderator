@@ -158,7 +158,7 @@ async def generate_user_feedback_message(message_strs: list[str], message_indexe
     <response>
     [Your feedback here]
     </response>
-                """,
+                """.strip(),
             }
         ],
         model="llama3.1-8b",
