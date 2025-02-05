@@ -38,27 +38,33 @@ async def check_channel_on_timer(channel: discord.TextChannel | discord.Thread, 
         channel (discord.TextChannel | discord.Thread): The channel or thread to check
         secs (int): Number of seconds for the timer to wait
     """
-    global global_check_timers_running
-    if global_check_timers_running.get(channel.id, 0):
+    try:
+        global global_check_timers_running
+        if global_check_timers_running.get(channel.id, 0):
+            global_check_timers_running[channel.id] = secs
+            return
+
         global_check_timers_running[channel.id] = secs
-        return
+        history = history_manager.get_history(channel.id)
+        if not history:
+            print(f"No history found for channel {channel.id}. Skipping moderation.")
+            return
 
-    global_check_timers_running[channel.id] = secs
-    history = history_manager.get_history(channel.id)
-    if not history:
-        print(f"No history found for channel {channel.id}. Skipping moderation.")
-        return
+        if history.time_of_last_message:
+            print(f"Channel {channel.id} last checked at {history.time_of_last_message}. Sleeping until next check in {secs} seconds...")
+            while history.time_of_last_message + datetime.timedelta(seconds=global_check_timers_running[channel.id]) > datetime.datetime.now(datetime.timezone.utc):
+                time_until_check = (history.time_of_last_message + datetime.timedelta(seconds=global_check_timers_running[channel.id]) - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+                print(f"Sleeping until next check in {time_until_check:.2f} seconds...")
+                await asyncio.sleep(2) # We need to see if a new message has been sent, so we wait a short time
 
-    if history.time_of_last_message:
-        print(f"Channel {channel.id} last checked at {history.time_of_last_message}. Sleeping until next check in {secs} seconds...")
-        while history.time_of_last_message + datetime.timedelta(seconds=global_check_timers_running[channel.id]) > datetime.datetime.now(datetime.timezone.utc):
-            time_until_check = (history.time_of_last_message + datetime.timedelta(seconds=global_check_timers_running[channel.id]) - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
-            print(f"Sleeping until next check in {time_until_check:.2f} seconds...")
-            await asyncio.sleep(min(time_until_check, 10))
-
-        if history.messages_since_last_check > 0:
-            global_check_timers_running[channel.id] = 0
-            await moderate(channel, history, HISTORY_PER_CHECK)
+            if history.messages_since_last_check > 0:
+                await moderate(channel, history, HISTORY_PER_CHECK)
+    except Exception as e:
+        print(f"Exception in check_channel_on_timer for channel {channel.id}: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        global_check_timers_running[channel.id] = 0
 
 
 async def retry_moderation(channel: discord.TextChannel | discord.Thread, history: MessageHistory, messages_per_check: int):
@@ -263,7 +269,8 @@ async def on_message(message: discord.Message):
         history.reset_messages_since_last_check()
         await moderate(channel, history, HISTORY_PER_CHECK)
     else:
-        asyncio.create_task(check_channel_on_timer(channel, SECS_BETWEEN_AUTO_CHECKS))
+        task = asyncio.create_task(check_channel_on_timer(channel, SECS_BETWEEN_AUTO_CHECKS))
+        task.add_done_callback(lambda t: print(f"Task for channel {channel.id} terminated with exception: {t.exception()}") if t.exception() else None)
 
     # print(format_discord_messages(history.get_messages()))
 
