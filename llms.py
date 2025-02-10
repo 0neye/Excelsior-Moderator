@@ -1,22 +1,18 @@
 from typing import Dict, List, Tuple
-from cerebras.cloud.sdk import Cerebras
+from google import genai
+from google.genai import types
 import discord
-from config import CEREBRAS_API_KEY
+from config import GEMINI_API_KEY
 import re
 
-client = Cerebras(
-    api_key=CEREBRAS_API_KEY
-)
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 def flag_messages(messages: list[str], waived_people: list[discord.Member]) -> str:
-
     waived_people_names = [person.display_name for person in waived_people]
 
-    chat_completion = client.chat.completions.create(
-        messages=[
-            {
-                "role": "user",
-                "content": f"""
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=[f"""
 You will be given a list of Discord messages related to a video game (Cosmoteer: Ship Architect and Commander). Your task is to identify messages that contain unsolicited and unconstructive criticism. 
 
 Messages are in the format "(index) user: ❝content❞". Here is the list of messages:
@@ -71,17 +67,17 @@ Provide your response in the following format (result section should be a valid 
 [Your brief thought process and reasoning for potentially problematic messages, not quoting the messages themselves]
 </analysis>
 
-<result>
+<r>
 {{"message_ids": [list of indexes], "confidence": {{"index": "confidence_level", ...}}}}
-</result>
-""".strip(),
-            }
-    ],
-        model="llama3.3-70b",
+</r>
+""".strip()],
+        config=types.GenerateContentConfig(
+            max_output_tokens=2000,
         temperature=0.2
+        )
     )
 
-    return chat_completion.choices[0].message.content
+    return response.text
 
 
 def flag_messages_in_thread(thread: discord.Thread, messages: list[str], waived_people: list[discord.Member]) -> str:
@@ -101,7 +97,7 @@ def flag_messages_in_thread(thread: discord.Thread, messages: list[str], waived_
 def extract_flagged_messages(llm_response: str) -> Tuple[List[int], Dict[int, str]]:
     try:
         llm_response = llm_response.split('</analysis>')[-1].strip()
-        result_pattern = r'<result>\s*(\{.*?\})\s*</result>'
+        result_pattern = r'<r>\s*(\{.*?\})\s*</r>'
         match = re.search(result_pattern, llm_response, re.DOTALL)
         
         if match:
@@ -126,7 +122,7 @@ def filter_confidence(confidence: Dict[int, str], confidence_threshold: str) -> 
     if confidence_threshold not in valid_thresholds:
         raise ValueError(f"Invalid confidence threshold: {confidence_threshold}")
     
-    return [idx for idx, conf in confidence.items() if conf in valid_thresholds[confidence_threshold]]
+    return [int(idx) for idx, conf in confidence.items() if conf in valid_thresholds[confidence_threshold]]
 
 
 async def generate_user_feedback_message(message_strs: list[str], message_indexes: list[int], guidelines: str) -> str:
