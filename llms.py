@@ -145,7 +145,7 @@ Message 24 is clearly unconstructive and dismissive, warranting a high confidenc
 
 </analysis>
 <result>
-{{"message_ids": [13, 24], "confidence": {13: "low", 24: "high"}}}
+{{"message_ids": [13, 24], "confidence": {{13: "low", 24: "high"}}}}
 </result>
 </example_response>
 
