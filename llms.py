@@ -217,72 +217,64 @@ Messages 16 and 18 violate multiple criteria for constructive criticism. Message
 
 </analysis>
 <result>
-{{"message_ids": [16, 18], "confidence": {{16: "medium", 18: "medium"}}}}
+{{"message_ids": [16, 18], "confidence": {{16: "high", 18: "medium"}}}}
 </result>
 </example_response>
 
 Example 3:
 <example_messages>
-(0) [reply to 16] TheFish28: ❝Na fr??❞
-(1) CoconutTrebuchet: ❝anti is a new elim player confirmed❞
-[reactions: 👁️ 3]
-(2) [reply to 15] ℵ3 Circles(ℏ): ❝uh probably not I was too lazy to turn off symmetry to add 2 cockpits❞
-(3) [reply to 1] TheFish28: ❝Gotcha
-Ellie fell for the bait❞
-(4) [reply to 14] ℵ3 Circles(ℏ): ❝1 149 696❞
-(5) idfk: ❝Ellie diff❞
-(6) ℵ3 Circles(ℏ): ❝but like at that point its just an objectively worse tb rail I think❞
-(7) [reply to 3] CoconutTrebuchet: ❝real lmfao❞
-(8) idfk: ❝hardly
-it's so much more agile❞
-(9) [reply to 5] CoconutTrebuchet: ❝Ellie *gets* diffed 🥲❞
-[reactions: 👁️ 1]
-(10) [reply to 6] TheFish28: ❝Your paying a premium for an unbreakable shield set up❞
-(11) [reply to 1] Antithesis [M]: ❝what do you think of my new avoider?
-[uploaded attachment/image]❞
-(12) [reply to 10] ℵ3 Circles(ℏ): ❝but usually tb rails die from getting their armor broken through on the corner or sides❞
-(13) TheFish28: ❝Learning how to fight tbrs?? Na I'd use the best part in this game large shields❞
-(14) [reply to 11] idfk: ❝meta destroyer❞
-(15) ℵ3 Circles(ℏ): ❝rather than having their thick frontal armor getting bursted through❞
-(16) [reply to 12] TheFish28: ❝If your getting flipped yes but that shouldn't happen that much❞
-(17) [reply to 11] CoconutTrebuchet: ❝stop cooking lil bro 😢
-bouta burn the kitchen down❞
-(18) ℵ3 Circles(ℏ): ❝I think it may be better with less LS investment❞
-(19) [reply to 16] TheFish28: ❝You should force an opponent to take a worse angle (optimally)
-6? Or less❞
-(20) ℵ3 Circles(ℏ): ❝6 sounds more reasonable❞
-(21) TheFish28: ❝8 Ls is also vry nice for taking full nuke lines if you rotate with them barely❞
-(22) idfk: ❝8ls is a lie by bigLS to sell more ls❞
-(23) ℵ3 Circles(ℏ): ❝true❞
-(24) [reply to 22] TheFish28: ❝I want Ls nerfed so yes it is❞
+(0) CoconutTrebuchet: ❝im also sorry for causing a tangent in your role app (i know i myself get annoyed when people go on a tangent in my classroom posts or role requests)❞,
+(1) Volkhat: ❝Ah, no problem. It is interesting to see it lol.\nHere is for when I applied for Expert, but this was after I got adept \n\nhttps://discord.com/channels/546229904488923141/546946524265971714/1014216283069370548\nHere when I requested Adept:\nhttps://discord.com/channels/546229904488923141/546946524265971714/1001648433716805732❞,
+(2) CoconutTrebuchet: ❝i like your msf\nfrom the OG adept req❞,
+(3) Volkhat: ❝Here:\nhttps://discord.com/channels/546229904488923141/546946524265971714/1005568734250930197❞,
+(4) CoconutTrebuchet: ❝ye❞,
+(5) Volkhat: ❝That was my second attempt at getting Adept.❞,
+(6) [reply to @CoconutTrebuchet] expewt: ❝https://tenor.com/view/guh-gif-25116077\nwhy is that relevant❞,
+(7) [reply to CoconutTrebuchet] Volkhat: ❝Just don't try to piss me, Air.\nNo problem, I will be waiting for your feedback.❞ (edited),
+(8) [reply to 7] expewt: ❝i am not❞,
+(9) Volkhat: ❝Ok❞,
+(10) [reply to 7] CoconutTrebuchet: ❝(i get home an hour from now :p)❞ (edited),
+(11) Dyno: ❝\n❞,
+(12) LunastroD ions :3 [M]: ❝rules 2,5,6,7❞,
+(13) [reply to @Role Voting] expewt: ❝that is not a beginner and feedback was specifically not requested\narguably less helpful is ok?❞\n[reactions: 👁️ 1],
+(14) [reply to @expewt] LunastroD ions :3 [M]: ❝don't be mean... I know volkhat played in the past but you're making people unconfortable and you keep going\nnot just in the role request❞,
+(15) expewt: ❝wdym\nthat is not to be mean\ngenerally people improve over time\nimo logistics on newer ships are not as good as the classic ones❞,
+(16) [reply to 15] [E] THETA: ❝intentions don't always translate over into what actually happens\nyou may not intend to be mean, but the words that you actually type turn out to be far less polite or kind than intended❞,
+(17) [reply to @Volkhat] CoconutTrebuchet: ❝Railfan:\n- Colossal amount of ammo you have here lol. The factory : rail ratio is very good by classic standards; but going forward with your future railfans I would strongly recommend using one 2x3 storage of ammo per 2 rails.\n- If you insist on going with a factory setup while you adjust to modern mechanics, then you can safely cut down a ton of your sulphur and still have nearly infinite ammo (in the scope of a 1.5mil elim lobby). I think that one 3x4 storage per side of the railfan is a good start.\n- You have a ton of internal armor on the railfan. I would distribute some of it to the sides and back to outlive rams better.\n- I don't think you need a whole bridge in the top module. I will describe how to know \n\nMorbiter:\n- That is a very, very exposed bridge lol.\n\n- Your ship only uses 342 crew points, meaning that you can save a ton of credits by just using one CR and a cockpit. The way you know how many crew points you should use is to pay attention to the CP bar (a ss of it is attached in the image) and only spending just enough to keep the bar above zero to the best of your ability\n\n- Missile module-- i thought it was cute that you tried to retrofit the classic modules into modern, but sadly, having the Fe/S storages this far away from the factories isn't very good. Think of it like how new players put their factories at the center of thier ship instead of adjacent to the launchers.\n- Your 30 launchers is definetly overwhelming, but i feel like you are better off shaving away one module (in total,) for some more armor\n [uploaded attachment/image]\nthe most important thing to take away is to not just use a bridge every time\npay attention to how much CP your ship's parts use, and only buy just enough control rooms or cockpits to keep the bar above zero❞ (edited),
+(18) Volkhat: ❝It was more by symetry and space rather than another thing.\nI think I did a new variant a few days ago, I am playing World Of Warplanes. But later I submit it.\nAlso the railfan got currently improved yesterday, I just haven't submitted it yet.❞\n[reactions: 👍 1],
+(19) [reply to 18] CoconutTrebuchet: ❝__Archetypes I recommend building to help transition into modern__\n- DC bricks: easy af to pilot, but also introduces parts and building concepts unique to modern like deck cannons and storage-based logi\n- TB rail: a nice, familiar face from classic with further developments going into modern. very high skill floor and ceiling but (supposedly) playing this is very good for improving overall piloting\n- Morbiters: I will miss the classic missile modules, but i would take a look at what a modern module looks like. Since the resources were heavily reworked going into modern, missile modules also changed a lot. They will also introduce you to using LS in your designs.\nfor symmetry, I would still recommend using 2 CRs than a whole bridge, because of the ~~sheer amount of credits you save~~ *reasonable amount of credits you save from crew\n(i forgor that the two individual parts are both the same cost <:agony:547055653194170381>)\nbut ideally you want to go with one CR and up to 2 cockpits\nsadly, you will have to look past the L symmetry❞ (edited),
+(20) [reply to 19] Volkhat: ❝Ah, I was thinking in use them yes. I didn't because people starts to complain lol.❞,
+(21) CoconutTrebuchet: ❝oh yeah people dont really care about perfect symmetry anymore lmao\njust see what modern ~~fastwalls~~ avoiders look like\n(this is a shitty avoider but at least its an example of one)\n [uploaded attachment/image]\nbut yeah, people literally make it very slightly asymmetric❞ (edited),
+(22) expewt: ❝still just as bad as the first time ;)\nthe 3 mr thrust block has also gotten a lot more popular\nlots of relatively niche optimizations like ul and whatnot become more mainstream❞\n[reactions: 👁️ 1],
+(23) Volkhat: ❝\n [uploaded attachment/image]\n\n [uploaded attachment/image]❞
 </example_messages>
 <example_response>
 <analysis>
 Flagging criteria:
-1. Offers negative feedback: No messages directly offer negative feedback on another user's work or ideas.
-2. Focuses solely on flaws: No messages focus solely on flaws of other users' ideas or builds.
-3. Lacks specific suggestions: Not applicable as no direct criticism is given.
-4. Joke at someone's expense: No messages contain jokes at someone's expense.
+1. Offers negative feedback: Message 22 offers negative feedback by stating "still just as bad as the first time ;)".
+2. Focuses solely on flaws: Message 22 focuses on perceived flaws without offering constructive advice.
+3. Lacks specific suggestions: While mentioning some changes, message 22 doesn't provide specific suggestions for improvement.
+4. Joke at someone's expense: The winking face ";)" could be interpreted as making light of the situation.
 
 Exemptions:
 1. Criticism references something outside context: Not applicable.
-2. Contains enough positive feedback: Most messages are neutral or discussing game mechanics.
+2. Contains enough positive feedback: Message 22 does not contain any positive feedback to balance the criticism.
 3. Person asking is ok with harsh criticism: No information provided about waived users.
-4. Self-criticism: Not present in any messages.
-5. Criticism directed at the game or absent parties: Message 24 expresses mild criticism about game updates, but not directed at present users.
-6. Sarcasm: Message 24 uses sarcasm to comment on game updates, but it's not directed at a specific user.
+4. Self-criticism: Not present in the message.
+5. Criticism directed at the game or absent parties: The criticism appears to be directed at Volkhat's design.
+6. Sarcasm: The message may contain sarcasm, but it's still hurtful, especially since they were just warned about their behavior by moderators ([M] tagged users).
 7. Pre-opted-in users: No information provided about waived users.
 
 Other considerations:
-- Most messages are discussing game mechanics, strategies, or speculating about updates.
-- No messages contain malicious or directly insulting content.
+- The conversation is generally constructive, with users providing feedback and suggestions.
+- Message 22 stands out as potentially unconstructive compared to the rest of the conversation.
 
 Analysis:
-No messages warrant flagging based on the given criteria. The conversation is primarily focused on game mechanics and updates, with no apparent violations of the guidelines for constructive criticism.
+Message 22 violates multiple criteria for constructive criticism. It starts with a negative comment about the design being "still just as bad as the first time", which is neither constructive nor encouraging. While it does mention some changes in the game, it doesn't provide specific suggestions for improvement related to these changes. The tone of the message, especially with the winking face, could be perceived as dismissive or mocking. This type of feedback could discourage the user from seeking further advice or participating in discussions.
 
 </analysis>
 <result>
-{{}}
+{{"message_ids": [22], "confidence": {{22: "high"}}}}
 </result>
 </example_response>
 """.strip(),
