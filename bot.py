@@ -484,6 +484,8 @@ async def run_eval(ctx: discord.ApplicationContext):
 
         results = []
         passed_count = 0
+        false_positive_count = 0
+        false_negative_count = 0
 
         # Iterate over each evaluation case while respecting rate limits (~1 sec per case)
         for case in eval_cases:
@@ -509,8 +511,13 @@ async def run_eval(ctx: discord.ApplicationContext):
 
             filtered_extracted = filter_confidence(confidence, "high")
 
-            passed = (relative_id in filtered_extracted) == expected
+            flagged = (relative_id in filtered_extracted)
+            passed = (flagged == expected)
             print(f"Case passed: {passed}")
+            if expected and not flagged:
+                false_negative_count += 1
+            if not expected and flagged:
+                false_positive_count += 1
 
             if passed:
                 passed_count += 1
@@ -536,7 +543,9 @@ async def run_eval(ctx: discord.ApplicationContext):
         md_content = "# Evaluation Results\n\n"
         md_content += f"Total Cases: {total_cases}\n"
         md_content += f"Passed: {passed_count}\n"
-        md_content += f"Failed: {failed_count}\n\n"
+        md_content += f"Failed: {failed_count}\n"
+        md_content += f"False Positives: {false_positive_count}\n"
+        md_content += f"False Negatives: {false_negative_count}\n\n"
         md_content += "## Detailed Results\n\n"
         for res in results:
             flagged_message = message_store.get_flagged_message(res['message_id'])
@@ -555,7 +564,8 @@ async def run_eval(ctx: discord.ApplicationContext):
         with open(EVALUATION_RESULTS_FILE, "w", encoding="utf-8") as f:
             f.write(md_content)
 
-        overview = f"Evaluation complete: {total_cases} cases processed. {passed_count} passed, {failed_count} failed. Pass rate: {passed_count/total_cases:.2%}"
+        overview = f"Evaluation complete: {total_cases} cases processed. {passed_count} passed, {failed_count} failed.\nPass rate: {passed_count/total_cases:.2%}"
+        overview += f"\nFalse Positives: {false_positive_count}\nFalse Negatives: {false_negative_count}"
 
         # Edit the initial ephemeral message with the updated summary
         await initial_response.edit(content=overview)
