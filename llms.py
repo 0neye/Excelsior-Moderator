@@ -221,8 +221,6 @@ Messages 16 and 18 violate multiple criteria for constructive criticism. Message
 </result>
 </example_response>
 
-</example_response>
-
 Example 3:
 <example_messages>
 (0) [reply to 16] TheFish28: ❝Na fr??❞
@@ -287,8 +285,6 @@ No messages warrant flagging based on the given criteria. The conversation is pr
 {{}}
 </result>
 </example_response>
-
-Begin!
 """.strip(),
             }
     ],
