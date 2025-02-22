@@ -123,13 +123,15 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     message_groups = GroupedHistory(history).last_n_groups(history_per_check)
 
     formatted_messages = message_groups.format_as_str_list()
-    print("Formatted messages:\n", '\n'.join(formatted_messages))
 
     # The number of groups added since the last check (the new ones)
     # We only want to flag new messages, and not ones near to the beginning of the visible context
     new_groups_since_last_check = max(MESSAGE_GROUPS_PER_CHECK, message_groups.get_group_count_since_last_check())
 
-    waived_people = history.get_members_with_waiver_role()
+    waived_people = history.get_member_names_with_waiver_role()
+
+    print("Formatted messages:\n", '\n'.join(formatted_messages))
+    print(f"Waived people: {', '.join(waived_people)}")
 
     global_llm_lock = True
     if isinstance(channel, discord.Thread):
@@ -145,6 +147,8 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     if extracted_tuple is None:
         print("Failed to extract flagged messages. Stopping moderation.")
         return llm_response
+
+    history.reset_messages_since_last_check()
 
     extracted, confidence = extracted_tuple
     
@@ -266,7 +270,6 @@ async def on_message(message: discord.Message):
 
     if history.messages_since_last_check >= MESSAGE_GROUPS_PER_CHECK:
         print("Checking for moderation actions...")
-        history.reset_messages_since_last_check()
         await moderate(channel, history, HISTORY_PER_CHECK)
     else:
         task = asyncio.create_task(check_channel_on_timer(channel, SECS_BETWEEN_AUTO_CHECKS))
@@ -442,7 +445,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         message.add_reaction(REACTION_EMOJI) # Add our own reaction
 
         # Store the flagged message (only one since we know it's this specific discord message)
-        message_store.add_flagged_message(message, group.relative_id, formatted_messages, waived_people=[member.display_name for member in temp_history.get_members_with_waiver_role()])
+        message_store.add_flagged_message(message, group.relative_id, formatted_messages, waived_people=temp_history.get_member_names_with_waiver_role())
         
         # Log it
         await _log_flagged_group(group, True)
@@ -484,6 +487,8 @@ async def run_eval(ctx: discord.ApplicationContext):
 
         results = []
         passed_count = 0
+        false_positives = 0
+        missed_flags = 0
 
         # Iterate over each evaluation case while respecting rate limits (~1 sec per case)
         for case in eval_cases:
@@ -512,6 +517,13 @@ async def run_eval(ctx: discord.ApplicationContext):
             passed = (relative_id in filtered_extracted) == expected
             print(f"Case passed: {passed}")
 
+            # Track false positives and missed flags
+            if not passed:
+                if relative_id in filtered_extracted and not expected:
+                    false_positives += 1
+                elif relative_id not in filtered_extracted and expected:
+                    missed_flags += 1
+
             if passed:
                 passed_count += 1
             results.append({
@@ -536,7 +548,9 @@ async def run_eval(ctx: discord.ApplicationContext):
         md_content = "# Evaluation Results\n\n"
         md_content += f"Total Cases: {total_cases}\n"
         md_content += f"Passed: {passed_count}\n"
-        md_content += f"Failed: {failed_count}\n\n"
+        md_content += f"Failed: {failed_count}\n"
+        md_content += f"False Positives: {false_positives}\n"
+        md_content += f"Missed Flags: {missed_flags}\n\n"
         md_content += "## Detailed Results\n\n"
         for res in results:
             flagged_message = message_store.get_flagged_message(res['message_id'])
@@ -555,7 +569,7 @@ async def run_eval(ctx: discord.ApplicationContext):
         with open(EVALUATION_RESULTS_FILE, "w", encoding="utf-8") as f:
             f.write(md_content)
 
-        overview = f"Evaluation complete: {total_cases} cases processed. {passed_count} passed, {failed_count} failed. Pass rate: {passed_count/total_cases:.2%}"
+        overview = f"Evaluation complete: {total_cases} cases processed. {passed_count} passed, {failed_count} failed. Pass rate: {passed_count/total_cases:.2%}\nFalse Positives: {false_positives}, Missed Flags: {missed_flags}"
 
         # Edit the initial ephemeral message with the updated summary
         await initial_response.edit(content=overview)

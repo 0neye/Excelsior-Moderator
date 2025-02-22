@@ -2,16 +2,71 @@ from typing import Dict, List, Tuple
 from google import genai
 from google.genai import types
 import discord
-from config import GEMINI_API_KEY
+from config import (
+    GOOGLE_API_KEY, CEREBRAS_API_KEY,
+    LOCAL_API_URL, CEREBRAS_API_URL,
+    MODEL_ROUTES
+)
 import re
+import requests
 
-client = genai.Client(api_key=GEMINI_API_KEY)
 
-def flag_messages(messages: list[str], waived_people: list[discord.Member]) -> str:
-    waived_people_names = [person.display_name for person in waived_people]
 
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
+client = genai.Client(api_key=GOOGLE_API_KEY)
+
+class ModelRouter:
+    def __init__(self):
+        self.gemini_client = genai.Client(api_key=GOOGLE_API_KEY)
+
+    def _get_provider(self, model: str) -> str:
+        """Determine which provider to use based on the model name prefix."""
+        for prefix, provider in MODEL_ROUTES.items():
+            if model.lower().startswith(prefix):
+                return provider
+        return "gemini"  # Default to Gemini if no match
+
+    def _call_openai_compatible_api(self, url: str, api_key: str | None, payload: dict) -> str:
+        """Make a call to an OpenAI-compatible API endpoint."""
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()  # Raise exception for bad status codes
+        return response.json()["choices"][0]["message"]["content"]
+
+    def generate_content(self, model: str, contents: List[str], config: types.GenerateContentConfig) -> str:
+        provider = self._get_provider(model)
+        
+        # Prepare the OpenAI-compatible payload
+        base_payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": c} for c in contents],
+            "temperature": config.temperature,
+            "max_tokens": -1,
+            "stream": False
+        }
+
+        if provider == "local":
+            return self._call_openai_compatible_api(LOCAL_API_URL, None, base_payload)
+        elif provider == "cerebras":
+            return self._call_openai_compatible_api(CEREBRAS_API_URL, CEREBRAS_API_KEY, base_payload)
+        else:  # gemini
+            response = self.gemini_client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=config
+            )
+            return response.text
+
+
+def flag_messages(messages: list[str], waived_people_names: list[str], local: bool = False) -> str:
+    flash = "gemini-2.0-flash"
+    llama = "llama-3.3-70b"
+    hermes = "hermes-3-llama-3.2-3b"
+    router = ModelRouter()
+    response = router.generate_content(
+        model=(llama if not local else hermes),
         contents=[f"""
 You will be given a list of Discord messages related to a video game (Cosmoteer: Ship Architect and Commander). Your task is to identify messages that contain unsolicited and unconstructive criticism. 
 
@@ -28,7 +83,7 @@ Analyze each message to determine if it contains either unsolicited and/or uncon
 4. Is a joke at someone elses expense
 
 A message is exempt from the above if it satisfies any of the following:
-1. The criticism references something or someone outside of the provided context
+1. The criticism references something or someone outside of the provided context (before index 0)
 2. Contains enough positive feedback to justify not flagging it
 3. The person asking for advice mentions they are ok with harsh criticism
 4. The person is criticizing themselves
@@ -44,7 +99,8 @@ Here is that (potentially empty) list:
 Examples of problematic messages include:
 - "variety of suboptimal decisions with no clear reasoning behind choosing them over more conventionally optimal things"
 - "Your missing significant side / rear armor on a majority of ships ammo factories are objectively never needed in dom"
-- "Where efficacy"
+- "Just as bad as the first time ;)"
+- "Where efficacy?"
 
 Examples of acceptable messages that should not be flagged:
 - "I share a similar opinion that the others. Do you want a more detailed breakdown on your ships?"
@@ -67,20 +123,19 @@ Provide your response in the following format (result section should be a valid 
 [Your brief thought process and reasoning for potentially problematic messages, not quoting the messages themselves]
 </analysis>
 
-<r>
+<result>
 {{"message_ids": [list of indexes], "confidence": {{"index": "confidence_level", ...}}}}
-</r>
+</result>
 """.strip()],
         config=types.GenerateContentConfig(
-            max_output_tokens=2000,
-        temperature=0.2
+            temperature=0.2
         )
     )
 
-    return response.text
+    return response
 
 
-def flag_messages_in_thread(thread: discord.Thread, messages: list[str], waived_people: list[discord.Member]) -> str:
+def flag_messages_in_thread(thread: discord.Thread, messages: list[str], waived_people_names: list[str]) -> str:
     thread_info = f"Thread Title: {thread.name}\n"
     
     first_message = thread.starting_message
@@ -90,14 +145,14 @@ def flag_messages_in_thread(thread: discord.Thread, messages: list[str], waived_
     
     messages_with_context = [thread_info] + messages
     
-    return flag_messages(messages_with_context, waived_people)
+    return flag_messages(messages_with_context, waived_people_names)
 
 
 
 def extract_flagged_messages(llm_response: str) -> Tuple[List[int], Dict[int, str]]:
     try:
         llm_response = llm_response.split('</analysis>')[-1].strip()
-        result_pattern = r'<r>\s*(\{.*?\})\s*</r>'
+        result_pattern = r'<result>\s*(\{.*?\})\s*</result>'
         match = re.search(result_pattern, llm_response, re.DOTALL)
         
         if match:

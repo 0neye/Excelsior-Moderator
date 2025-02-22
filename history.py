@@ -46,19 +46,19 @@ class MessageHistory:
         """Get all messages in the history."""
         return list(self.messages)
 
-    def get_members_with_waiver_role(self) -> list[discord.Member]:
+    def get_member_names_with_waiver_role(self) -> list[str]:
         """
         Fetches a list of users in this message history who have the specified waiver role.
         May require additional checks if the Member object is partial.
         """
-        members = []
+        members = set()
         for message in self.messages:
             # Ensure we have a Member object with roles
             if hasattr(message.author, "roles"):
                 for role in message.author.roles:
                     if role.name == WAIVER_ROLE_NAME:
-                        members.append(message.author)
-        return members
+                        members.add(message.author.display_name)
+        return list(members)
     
     def bot_message_in_history(self, num_messages: int, bot_id: int) -> bool:
         """
@@ -278,9 +278,13 @@ class GroupedHistory:
 
     def get_group_count_since_last_check(self) -> int:
         """Get number of groups since last check."""
-        for i, group in enumerate(reversed(self.groups)):
-            if group.oldest_message().created_at < self.base_history.get_messages()[-self.base_history.messages_since_last_check].created_at:
-                return i + 1
+        print(f"Messages since last check: {self.base_history.messages_since_last_check}")
+        last_checked_message = self.base_history.get_messages()[-(self.base_history.messages_since_last_check)].created_at
+        print(f"Last checked message: {last_checked_message}")
+        if self.base_history.messages_since_last_check > 0:
+            for i, group in enumerate(reversed(self.groups)):
+                if group.oldest_message().created_at < last_checked_message:
+                    return i + 1
         return 0
 
     def format(self) -> str:
