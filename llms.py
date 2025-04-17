@@ -117,6 +117,7 @@ For each flagged message, assign a confidence level:
  - "high": Clear violation with obvious targeting of users/work
  - "medium": Likely problematic but contains some ambiguity
  - "low": Potentially problematic but requires more context
+Remember, if the user being criticized is in the waived people list, rate the criticism as "low" or not at all.
 
 Provide your response in the following format (result section should be a valid python dict):
 <analysis>

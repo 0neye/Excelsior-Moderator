@@ -133,7 +133,7 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     print("Formatted messages:\n", '\n'.join(formatted_messages))
     print(f"Waived people: {', '.join(waived_people)}")
 
-    global_llm_lock = True
+    #global_llm_lock = True
     if isinstance(channel, discord.Thread):
         llm_response = flag_messages_in_thread(channel, formatted_messages, waived_people)
     else:
@@ -182,7 +182,7 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
             continue
 
         for message in group.messages:
-            message_store.add_flagged_message(message, rel_id, formatted_messages, llm_response, [member.display_name for member in waived_people])
+            message_store.add_flagged_message(message, rel_id, formatted_messages, llm_response, waived_people)
 
         await _log_flagged_group(group)
 

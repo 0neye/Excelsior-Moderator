@@ -24,7 +24,7 @@ class MessageHistory:
         """Add a new message to the history."""
         # print(f"Adding message {message.id} to history in channel {message.channel.id}")
         self.messages.append(message)
-        self.messages_since_last_check += 1
+        self._increment_messages_since_last_check()
         self.time_of_last_message = message.created_at
     
     def edit_message(self, message: discord.Message):
@@ -77,6 +77,9 @@ class MessageHistory:
                 if message.reference is not None:
                     return True
         return False
+
+    def _increment_messages_since_last_check(self):
+        self.messages_since_last_check = min(self.messages_since_last_check + 1, len(self.messages))
 
     def reset_messages_since_last_check(self):
         """Reset the counter for messages since last check."""
