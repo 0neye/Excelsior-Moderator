@@ -1,17 +1,14 @@
 import asyncio
 import re
-from typing import Optional
 import discord
-from collections import deque
 import datetime
 from history import DiscordMessageGroup, GroupedHistory, MessageHistory, MessageHistoryManager
 from message_store import FlaggedMessageStore
 from eval_handler import EvalHandler
-import json
 
-from config import DISCORD_BOT_TOKEN, CHANNEL_ALLOW_LIST, EVALUATION_RESULTS_FILE, EVALUATION_STORE_FILE, GENERIC_PING_RESPONSE, GUIDELINES, HISTORY_PER_CHECK, LOG_CHANNEL_ID, MESSAGE_GROUPS_PER_CHECK, SECS_BETWEEN_AUTO_CHECKS, SEND_RESPONSES_TO_LOG_CHANNEL_ONLY, WAIVER_ROLE_NAME, REACT_WITH_EMOJI_IF_NOT_RESPONDING, REACTION_EMOJI, MODERATOR_ROLES
-from llms import extract_flagged_messages, flag_messages, flag_messages_in_thread, generate_user_feedback_message, filter_confidence
-from utils import format_consecutive_user_messages, format_discord_message, respond_long_message, sanitize_external_content, send_long_message
+from config import DISCORD_BOT_TOKEN, CHANNEL_ALLOW_LIST, EVALUATION_RESULTS_FILE, HISTORY_PER_CHECK, LOG_CHANNEL_ID, MESSAGE_GROUPS_PER_CHECK, SECS_BETWEEN_AUTO_CHECKS, SEND_RESPONSES_TO_LOG_CHANNEL_ONLY, WAIVER_ROLE_NAME, REACT_WITH_EMOJI_IF_NOT_RESPONDING, REACTION_EMOJI, MODERATOR_ROLES
+from llms import extract_flagged_messages, flag_messages, flag_messages_in_thread, generate_user_feedback_message, filter_confidence, filter_flagged_messages
+from utils import format_discord_message, respond_long_message, send_long_message
 
 global_llm_lock = False
 global_check_timers_running = {}
@@ -142,31 +139,33 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
 
     print(f"LLM response: `{llm_response}`")
 
-    extracted_tuple = extract_flagged_messages(llm_response)
-
-    if extracted_tuple is None:
+    flagged_list = extract_flagged_messages(llm_response)
+    if flagged_list is None:
         print("Failed to extract flagged messages. Stopping moderation.")
         return llm_response
 
     history.reset_messages_since_last_check()
 
-    extracted, confidence = extracted_tuple
-    
-    print("Flagged message indexes:", extracted)
-    print("Confidence:", confidence)
+    # Remove messages directed at waived people or non-present users
+    present_people_names = [group.author.display_name for group in message_groups.groups]
+    flagged_list = filter_flagged_messages(flagged_list, waived_people, present_people_names)
+    print("Flagged messages after waived/present filter:", flagged_list)
 
-    # Filter out low confidence flagged messages
+    # Filter by confidence
     confidence_threshold = 'high'
-    filtered_extracted = filter_confidence(confidence, confidence_threshold)
-    
-    if not filtered_extracted:
-        print(f"All flagged messages were below the confidence threshold of {confidence_threshold}. Skipping moderation.")
+    filtered_flagged = filter_confidence(flagged_list, confidence_threshold)
+    print(f"Filtered flagged messages (confidence {confidence_threshold}):", filtered_flagged)
+
+    if not filtered_flagged:
+        print(f"All flagged messages were below the confidence threshold of {confidence_threshold} or waived. Skipping moderation.")
         return llm_response
-    
-    print(f"Filtered flagged message indexes: {filtered_extracted}")
-    
+
+    # Extract indexes to flag
+    filtered_indexes = [msg['index'] for msg in filtered_flagged]
+    print(f"Flagged message indexes: {filtered_indexes}")
+
     flagged_groups = message_groups \
-        .flag_groups(filtered_extracted) \
+        .flag_groups(filtered_indexes) \
         .last_n_groups(new_groups_since_last_check, update_rel_ids=False) \
         .get_flagged_groups()
 
@@ -174,23 +173,17 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
 
     # Always add flagged messages to the store and send a log to the log channel
     for group in flagged_groups:
-
         rel_id = group.relative_id
-
-        if rel_id not in filtered_extracted:
-            print(f"Warning: Group ID ({rel_id}) being flagged was not in the list of extracted message indexes ({filtered_extracted}). Starting message: {group.oldest_message().jump_url}")
+        if rel_id not in filtered_indexes:
+            print(f"Warning: Group ID ({rel_id}) being flagged was not in the list of extracted message indexes ({filtered_indexes}). Starting message: {group.oldest_message().jump_url}")
             continue
-
         for message in group.messages:
             message_store.add_flagged_message(message, rel_id, formatted_messages, llm_response, waived_people)
-
         await _log_flagged_group(group)
-
         # If we should only send flagged messages to a log channel and not respond to the user
-        # If we should react with emojis as a subsitute
+        # If we should react with emojis as a substitute
         if SEND_RESPONSES_TO_LOG_CHANNEL_ONLY and REACT_WITH_EMOJI_IF_NOT_RESPONDING:
             await group.newest_message().add_reaction(REACTION_EMOJI)
-
         # If we do want to directly respond to the user
         else:
             pass
@@ -442,7 +435,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         formatted_messages = grouped.format_as_str_list()
         group = grouped.get_group_by_message_id(message.id)
         group.flag()
-        message.add_reaction(REACTION_EMOJI) # Add our own reaction
+        await message.add_reaction(REACTION_EMOJI) # Add our own reaction
 
         # Store the flagged message (only one since we know it's this specific discord message)
         message_store.add_flagged_message(message, group.relative_id, formatted_messages, waived_people=temp_history.get_member_names_with_waiver_role())
@@ -506,22 +499,40 @@ async def run_eval(ctx: discord.ApplicationContext):
                 llm_response = f"Error: {e}"
 
             print("Extracting flagged messages...")
-            extracted_tuple = extract_flagged_messages(llm_response)
-            if extracted_tuple is None:
+            extracted = extract_flagged_messages(llm_response)
+            if extracted is None:
                 continue
 
-            extracted, confidence = extracted_tuple
+            # Determine present people names from the history (list of formatted strings)
+            present_people_names = []
+            # Regex: ignore optional '(index) ', then optional '[reply to ...] ', then capture username up to colon + space + quote
+            username_pattern = re.compile(r"^(?:\(\d+\)\s*)?(?:\[reply to [^\]]+\] )?(.+?): \u275d")
+            for msg in history:
+                match = username_pattern.match(msg)
+                if match:
+                    present_people_names.append(match.group(1).strip())
+            present_people_names = list(set(present_people_names))
 
-            filtered_extracted = filter_confidence(confidence, "high")
+            # Apply waived/present/unknown filtering
+            filtered_flagged = filter_flagged_messages(extracted, waived_people, present_people_names)
+            # Apply confidence filtering
+            filtered_flagged = filter_confidence(filtered_flagged, "high")
 
-            passed = (relative_id in filtered_extracted) == expected
+            # For compatibility with old logic, build a set of relative_ids that are flagged
+            flagged_rel_ids = set()
+            for msg in filtered_flagged:
+                idx = msg.get('index') or msg.get('relative_id') or msg.get('rel_id') or msg.get('id')
+                if idx is not None:
+                    flagged_rel_ids.add(idx)
+
+            passed = (relative_id in flagged_rel_ids) == expected
             print(f"Case passed: {passed}")
 
             # Track false positives and missed flags
             if not passed:
-                if relative_id in filtered_extracted and not expected:
+                if relative_id in flagged_rel_ids and not expected:
                     false_positives += 1
-                elif relative_id not in filtered_extracted and expected:
+                elif relative_id not in flagged_rel_ids and expected:
                     missed_flags += 1
 
             if passed:
