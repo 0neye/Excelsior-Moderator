@@ -4,11 +4,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 CEREBRAS_API_KEY = os.getenv('CEREBRAS_API_KEY')
+
+# LLM API endpoints and configuration
+LOCAL_API_URL = "http://127.0.0.1:1234/v1/chat/completions"
+CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions"
+
+# Model routing configuration
+MODEL_ROUTES = {
+    "gemini": "gemini",    # Models starting with "gemini" go to Google's API
+    "llama": "cerebras",   # Models starting with "llama" go to Cerebras
+    "hermes": "local"      # Models starting with "hermes" go to local server
+}
 
 # The text or forum channels to allow
 excelsior = [546229904488923145, 1101149194498089051, 546327169014431746, 1240185912525324300, 546907635149045775, 546947839008440330]
-CHANNEL_ALLOW_LIST = [1240462346808463362, 779084507768291379, 1077332289190625300] + excelsior
+CHANNEL_ALLOW_LIST = excelsior
 
 MODERATOR_ROLES = ["Sentinel (mod)", "Custodian (admin)"]
 
@@ -17,17 +29,17 @@ EVALUATION_STORE_FILE = "convo_eval.json"
 EVALUATION_RESULTS_FILE = "eval_results.md"
 
 # How many message groups to wait for before sending them to the llm for moderation
-MESSAGE_GROUPS_PER_CHECK = 10
+MESSAGE_GROUPS_PER_CHECK = 20
 
 # How many message groups of history to send to the llm for analysis
-HISTORY_PER_CHECK = 25
+HISTORY_PER_CHECK = 30
 
 # If there are new messages in a channel that haven't been checked, but not enough to trigger the above, check anyway after this time
 # Resets after a new message, and doesn't trigger if all messages in channel have already been checked
-SECS_BETWEEN_AUTO_CHECKS = 60
+SECS_BETWEEN_AUTO_CHECKS = 240
 
 # The role for people who don't care about harsh feedback
-WAIVER_ROLE_NAME = "Waiver"
+WAIVER_ROLE_NAME = "Criticism Pass"
 
 # The guidelines for constructive criticism
 GUIDELINES = """
