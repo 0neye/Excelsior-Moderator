@@ -12,11 +12,12 @@ Logs suspected message groups to a moderator log channel. Can also publicly reac
 - Manual flagging by moderators adds messages to the eval set when the AI doesn't catch them
 
 **Examples:**
-
+<img width="1586" height="888" alt="image" src="https://github.com/user-attachments/assets/a4fb0a94-100d-4ce5-abce-4050f3ffe7e6" />
+<img width="970" height="796" alt="image" src="https://github.com/user-attachments/assets/cf9740d5-143a-4d81-84c2-5b0bf5e921a2" />
 
 
 **What can be improved (but probably won't unless someone wants to):**
 - An actual DB instead of json files
 - De-cluttering the code
 - Ditching the message cluster idea (it confuses people when the wrong message is reacted to)
-- Using a larger model through cerebras; they've added a lot more since I last optimized the prompt
+- Using a larger model through cerebras; they've added a lot more since I last optimized the prompt and it might improve accuracy
