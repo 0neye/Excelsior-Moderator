@@ -12,7 +12,6 @@ CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions"
 
 # Model routing configuration
 MODEL_ROUTES = {
-    "gemini": "gemini",    # Models starting with "gemini" go to Google's API
     "llama": "cerebras",   # Models starting with "llama" go to Cerebras
     "hermes": "local"      # Models starting with "hermes" go to local server
 }
