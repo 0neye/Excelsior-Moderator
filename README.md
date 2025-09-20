@@ -21,3 +21,10 @@ Logs suspected message groups to a moderator log channel. Can also publicly reac
 - De-cluttering the code
 - Ditching the message cluster idea (it confuses people when the wrong message is reacted to)
 - Using a larger model through cerebras; they've added a lot more since I last optimized the prompt and it might improve accuracy
+
+**How to run:**
+1. First, make a new bot in the (Discord dev portal)[https://discord.com/developers/applications] and do all the usual things. One exception is that it will need "message content" intents to be enabled. Make sure it can read all messages, history, threads, and send messages.
+2. Go to config.py and replace the channel IDs with the IDs of the channels in your own server/servers. Forum channels just need the parent channel ID and it should work for all threads.
+3. Create a .env file in the bot directory and add your Discord token and Cerebras API key. If you don't have access to Cerebras, you can use OpenRouter or another OpenAI-compatible API and replace the API base URL as well.
+4. Invite the bot to your server.
+5. Run bot.py
