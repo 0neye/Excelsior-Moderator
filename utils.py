@@ -151,21 +151,6 @@ def format_discord_messages(messages: list[discord.Message]) -> list[str]:
     return formatted_messages
 
 
-def sanitize_external_content(content: str) -> str:
-    """
-    Sanitize external content by removing potentially harmful patterns.
-    
-    Args:
-        content (str): Content to sanitize
-        
-    Returns:
-        str: Sanitized content
-    """
-    bad_inputs: list[str] = [r"<\|.*\|>"]
-    for pattern in bad_inputs:
-        content = re.sub(pattern, '', content, count=1000000)
-    return content
-
 async def get_discord_message_by_id(channel: discord.abc.Messageable, discord_message_id: int, fetch: bool = False) -> discord.Message | None:
     """
     Retrieve a discord message by its ID from the discord API.

@@ -10,7 +10,7 @@ from config import DISCORD_BOT_TOKEN, CHANNEL_ALLOW_LIST, EVALUATION_RESULTS_FIL
 from llms import extract_flagged_messages, flag_messages, flag_messages_in_thread, generate_user_feedback_message, filter_confidence, filter_flagged_messages
 from utils import format_discord_message, respond_long_message, send_long_message
 
-global_llm_lock = False
+ 
 global_check_timers_running = {}
 
 bot = discord.Bot(intents=discord.Intents.all())
@@ -73,9 +73,7 @@ async def retry_moderation(channel: discord.TextChannel | discord.Thread, histor
         history (MessageHistory): Message history object for the channel
         messages_per_check (int): Number of messages to check per moderation run
     """
-    global global_llm_lock
-    while global_llm_lock:
-        await asyncio.sleep(2)
+    
     await moderate(channel, history, messages_per_check)
 
 async def _log_flagged_group(group: DiscordMessageGroup, manual: bool = False):
@@ -109,12 +107,6 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
         print("Bot message found in history. Skipping moderation.")
         return
 
-    global global_llm_lock
-    if global_llm_lock:
-        print("LLM is currently processing messages. Scheduling a retry...")
-        asyncio.create_task(retry_moderation(channel, history, history_per_check))
-        return
-
     print(f"Moderating channel {channel.id}... Using {history_per_check} message groups this check.")
 
     message_groups = GroupedHistory(history).last_n_groups(history_per_check)
@@ -130,12 +122,11 @@ async def moderate(channel: discord.TextChannel | discord.Thread, history: Messa
     print("Formatted messages:\n", '\n'.join(formatted_messages))
     print(f"Waived people: {', '.join(waived_people)}")
 
-    #global_llm_lock = True
+    
     if isinstance(channel, discord.Thread):
         llm_response = flag_messages_in_thread(channel, formatted_messages, waived_people)
     else:
         llm_response = flag_messages(formatted_messages, waived_people)
-    global_llm_lock = False
 
     print(f"LLM response: `{llm_response}`")
 
@@ -592,3 +583,4 @@ async def run_eval(ctx: discord.ApplicationContext):
         await initial_response.edit(content=error_message)
 
 bot.run(DISCORD_BOT_TOKEN)
+
